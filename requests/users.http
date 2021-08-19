@@ -1,0 +1,21 @@
+POST http://localhost:8017/api/user/add
+Content-Type: application/json
+
+{
+  "user": {
+    "login": "admin",
+    "password": "admin",
+    "isAdmin": true
+  }
+}
+
+###
+
+POST http://localhost:8017/api/stock/list
+Content-Type: application/json
+
+{
+  "filter": {}
+}
+
+###
