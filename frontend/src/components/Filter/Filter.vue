@@ -12,6 +12,8 @@
         hide-details
         ref="selectComponent"
         :outlined="outlined"
+        append-icon="mdi-content-save"
+        @click:append="$emit('save')"
     >
         <template v-slot:selection="{item}">
             <v-chip close @click:close="deselectField(item.id)">

@@ -1,7 +1,10 @@
 import axios from "axios";
 import clone from "lodash.clonedeep";
+import moment from "moment";
+import {normalizeDate} from "../utils.mjs";
 
 const API_BASE_URL = 'https://myshop-bmb974.myinsales.ru/';
+const MAX_PER_PAGE = 100;
 
 export class InSales {
     constructor(apiId = null, apiPassword = null) {
@@ -26,6 +29,28 @@ export class InSales {
     async fetchOptions() {
         let data = await this.callGetMethod('admin/option_names.json');
         return data;
+    }
+
+    async fetchOrders(dateFrom = false) {
+        let defaultDate = moment().startOf('d');
+        dateFrom = normalizeDate(dateFrom, defaultDate);
+
+        let loadNextPage = false;
+        let page = 1;
+        let allOrders = [];
+
+        do {
+            let pageOrders = await this.callGetMethod('admin/orders.json', {
+                updated_since: dateFrom.toISOString(),
+                per_page: MAX_PER_PAGE,
+                page,
+            });
+            loadNextPage = pageOrders && pageOrders.length > 0;
+            page++;
+            allOrders = allOrders.concat(pageOrders);
+        } while (loadNextPage)
+
+        return allOrders;
     }
 
     async addProductWithVariant(newProduct, newVariant, collectionId) {

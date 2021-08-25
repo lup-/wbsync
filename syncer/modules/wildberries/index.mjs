@@ -1,6 +1,7 @@
 import axios from "axios";
 import moment from "moment";
 import createDebug from "debug";
+import {normalizeDate} from "../utils.mjs";
 
 const API_BASE = 'https://suppliers-stats.wildberries.ru/api/v1/';
 const API_V2_BASE = 'https://suppliers-api.wildberries.ru/api/v2/';
@@ -58,24 +59,7 @@ export class Wildberries {
     }
 
     normalizeDate(someDate, defaultDate) {
-        if (!someDate) {
-            return  defaultDate;
-        }
-        else {
-            if (moment.isMoment(someDate)) {
-                return someDate;
-            }
-
-            try {
-                let momentDate = moment(dateFrom);
-                return momentDate && momentDate.isValid()
-                    ? momentDate
-                    : defaultDate;
-            }
-            catch (e) {
-                return defaultDate;
-            }
-        }
+        return normalizeDate(someDate, defaultDate);
     }
 
     async getOrdersV1(dateFrom = false, useUpdateDate = true) {

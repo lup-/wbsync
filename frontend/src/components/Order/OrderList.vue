@@ -15,7 +15,7 @@
                     locale="ru"
                 >
                     <template v-slot:top>
-                        <filter-field v-model="filter" :fields="filterFields" label="Фильтр" outlined class="mb-6"></filter-field>
+                        <filter-field v-model="filter" :fields="filterFields" label="Фильтр" outlined class="mb-6" @save="saveFilter"></filter-field>
                     </template>
                     <template v-slot:item.actions="{ item }">
                         <div class="actions d-flex flex-row">
@@ -48,24 +48,28 @@
                     sortDesc: [true],
                     itemsPerPage: 15,
                 },
-                filter: {orderType: ['FBS'], source: ['wildberries'], completed: false, canceled: false},
+                filter: {},
                 productDialogs: {},
 
                 allHeaders: [
+                    {text: 'Источник данных', value: 'sourceType'},
                     {text: 'Тип заказа', value: 'orderType'},
-                    {text: 'Источник', value: 'source'},
-                    {text: 'Клиент', value: 'keyId', width: '20%'},
-                    {text: 'Код', value: 'id'},
+                    {text: 'Канал', value: 'source'},
+                    {text: 'Продавец', value: 'keyId', width: '20%'},
+                    {text: 'Заказ', value: 'id'},
                     {text: 'Дата обновления', value: 'updated'},
-                    {text: 'Статус', value: 'statusText'},
-                    {text: 'Стоимость', value: 'price'},
+                    {text: 'Статус', value: 'statusText', width: '30%'},
+                    {text: 'Сумма', value: 'price'},
                     {text: 'Отменен', value: 'canceled'},
                     {text: 'Выполнен', value: 'completed'},
                     {text: 'Действия', value: 'actions', sortable: false, width: '10%'},
                 ],
             }
         },
-        async mounted () {
+        async created() {
+            this.initFilter();
+        },
+        async mounted() {
             await this.loadKeys();
             await this.loadEnums();
             await this.loadItems();
@@ -85,6 +89,20 @@
             }
         },
         methods: {
+            initFilter() {
+                let defaultFilter = {orderType: ['FBS'], source: ['wildberries'], completed: false, canceled: false};
+                let savedFilter = localStorage.getItem('savedFilter');
+                if (!savedFilter) {
+                    this.filter = defaultFilter;
+                    return;
+                }
+
+                this.filter = JSON.parse(savedFilter);
+            },
+            saveFilter() {
+                localStorage.setItem('savedFilter', JSON.stringify(this.filter));
+                this.$store.commit('setSuccessMessage', 'Фильтр сохранен!');
+            },
             async loadItems() {
                 this.loading = true;
                 let sort = this.options.sortBy && this.options.sortBy.length > 0
@@ -150,6 +168,7 @@
                         return {
                             _id: order._id,
                             orderType: order.orderType,
+                            sourceType: order.sourceType,
                             source: order.source,
                             keyId: this.keys[order.keyId],
                             id: order.id,
@@ -184,10 +203,10 @@
                 let keys = this.$store.state.key.list.map(item => ({text: item.title, value: item.id}));
 
                 return [
-                    {text: 'Источник', id: 'source', type: 'select', items: this.sourceTypes, attrs: {multiple: true}},
-                    {text: 'Код', id: 'id'},
+                    {text: 'Канал', id: 'source', type: 'select', items: this.sourceTypes, attrs: {multiple: true}},
+                    {text: 'Заказ', id: 'id'},
                     {text: 'Тип заказа', id: 'orderType', type: 'select', items: this.orderTypes, attrs: {multiple: true}},
-                    {text: 'Клиент', id: 'keyId', type: 'select', items: keys, attrs: {multiple: true}},
+                    {text: 'Продавец', id: 'keyId', type: 'select', items: keys, attrs: {multiple: true}},
                     {text: 'Статус', id: 'statusText', type: 'select', items: this.statusTypes, attrs: {multiple: true}},
                     {text: 'Выполнен', id: 'completed', type: 'dateFlag'},
                     {text: 'Отменен', id: 'canceled', type: 'dateFlag'},

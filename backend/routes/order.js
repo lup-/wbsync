@@ -139,6 +139,7 @@ module.exports = {
             source: [
                 {id: 'wildberries', text: 'Wildberries'},
                 {id: 'ozon', text: 'Ozon'},
+                {id: 'insales', text: 'InSales'},
             ]
         }
     }
