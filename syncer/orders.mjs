@@ -403,7 +403,7 @@ async function updateInsalesOrdersInDb(keys, db) {
     let insalesKeys = keys.filter(key => key.type === 'insales');
 
     if (wbKeys.length > 0) {
-        //await updateWbOrdersInDb(wbKeys, db);
+        await updateWbOrdersInDb(wbKeys, db);
     }
 
     if (insalesKeys.length > 0) {
