@@ -74,6 +74,18 @@ export class Wildberries {
         return this.callV1Api('supplier/orders', v1params);
     }
 
+    async getSalesV1(dateFrom = false, useUpdateDate = true) {
+        let defaultDate = moment().startOf('d');
+        dateFrom = this.normalizeDate(dateFrom, defaultDate);
+
+        let v1params = {
+            dateFrom: dateFrom.toISOString(),
+            flag: useUpdateDate ? 0 : 1
+        }
+
+        return this.callV1Api('supplier/sales', v1params);
+    }
+
     async getOrdersV2(dateFrom = false, dateTo = false) {
         let defaultDate = moment().startOf('d');
         dateFrom = this.normalizeDate(dateFrom, defaultDate);

@@ -131,7 +131,13 @@ export default {
         },
         emitFilter() {
             let filter = this.activeFields.reduce((buildFilter, fieldId) => {
-                buildFilter[fieldId] = this.values[fieldId];
+                let fieldParams = this.fields.find(field => field.id === fieldId);
+                let isNumber = fieldParams.type && fieldParams.type === 'number';
+
+                buildFilter[fieldId] = isNumber
+                    ? parseInt(this.values[fieldId])
+                    : this.values[fieldId];
+
                 return buildFilter;
             }, {});
 

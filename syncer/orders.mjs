@@ -49,6 +49,23 @@ function makeDbProductsFromWildberriesV1(wbv1Order) {
         price: parseInt( wbv1Order.totalPrice * 100)
     }];
 }
+function makeDbProductsFromWildberriesSaleV1(wbv1Sale) {
+    return [{
+        id: null,
+        sku: wbv1Sale.supplierArticle,
+        color: null,
+        size: {
+            ru: wbv1Sale.techSize,
+            de: null
+        },
+        variant: null,
+        title: wbv1Sale.subject,
+        brand: wbv1Sale.brand,
+        barcode: wbv1Sale.barcode,
+        quantity: wbv1Sale.quantity,
+        price: parseInt( wbv1Sale.totalPrice * 100)
+    }];
+}
 function makeDbProductsFromWildberriesV2(wbv2Order) {
     return [{
         id: null,
@@ -90,10 +107,10 @@ function makeDbOrderFromWildberriesV1(wbv1Order, key) {
     return {
         source: 'wildberries',
         sourceType: 'v1',
-        orderType: 'FBS/O',
+        orderType: 'ORDER',
         keyId: key.id,
 
-        id: parseInt( wbv1Order.number !== 0 ? wbv1Order.number : wbv1Order.nmId ),
+        id: parseInt( wbv1Order.number !== 0 ? wbv1Order.number : wbv1Order.odid ),
         updated: moment(wbv1Order.lastChangeDate).unix(),
         created: moment(wbv1Order.date).unix(),
         canceled: wbv1Order.isCancel ? moment(wbv1Order.cancel_dt).unix() : false,
@@ -145,6 +162,26 @@ function makeDbOrderFromWildberriesV2(wbv2Order, key) {
         products: makeDbProductsFromWildberriesV2(wbv2Order),
 
         raw: wbv2Order
+    }
+}
+function makeDbOrderFromWildberriesSalesV1(wbv1Sale, key) {
+    return {
+        source: 'wildberries',
+        sourceType: 'v1',
+        orderType: 'SALE',
+        keyId: key.id,
+
+        id: wbv1Sale.saleID,
+        updated: moment(wbv1Sale.lastChangeDate).unix(),
+        created: moment(wbv1Sale.date).unix(),
+        canceled: null,
+        status: null,
+        statusText: null,
+        price: parseInt( wbv1Sale.finishedPrice * 100),
+
+        products: makeDbProductsFromWildberriesSaleV1(wbv1Sale),
+
+        raw: wbv1Sale
     }
 }
 function makeDbOrderFromInsales(insalesOrder, key) {
@@ -365,10 +402,14 @@ async function syncJoinedWBOrders(key, db) {
     let dateFrom = await getDateFrom(source, db);
     let dateTo = moment().endOf('d');
     let ordersV1 = await wb.getOrdersV1(dateFrom) || [];
+    let salesV1 = await wb.getSalesV1(dateFrom) || [];
     let ordersV2 = await wb.getOrdersV2(dateFrom, dateTo) || [];
-    let preparedOrdersV1 = ordersV1.map(order => makeDbOrderFromWildberriesV1(order, key));
+    let preparedOrdersV1 = ordersV1
+        // .filter(orderV1 => orderV1.number !== 0)
+        .map(order => makeDbOrderFromWildberriesV1(order, key));
+    let preparedSalesV1 = salesV1.map(sale => makeDbOrderFromWildberriesSalesV1(sale, key));
     let preparedOrdersV2 = ordersV2.map(order => makeDbOrderFromWildberriesV2(order, key));
-    let joinedOrders = joinByArray(preparedOrdersV1.concat(preparedOrdersV2));
+    let joinedOrders = joinByArray(preparedOrdersV1.concat(preparedOrdersV2).concat(preparedSalesV1));
     let beforeUpdate = (updatedOrder, savedOrder) => {
         if (updatedOrder.sourceType === 'v2') {
             updatedOrder.updated = moment().unix();

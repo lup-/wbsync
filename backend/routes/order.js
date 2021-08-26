@@ -37,6 +37,30 @@ module.exports = {
                     ? {$gt: 0}
                     : {$in: [null, false, 0]};
             }
+            else if (field === "id") {
+                let intValue = null;
+                try {
+                    intValue = parseInt(value);
+                }
+                finally {
+                    filter[field] = intValue !== null
+                        ? {$in: [value, intValue]}
+                        : value;
+                }
+            }
+            else if (field === "barcode") {
+                let intValue = null;
+                try {
+                    intValue = parseInt(value);
+                }
+                finally {
+                    let matchQuery = intValue !== null
+                        ? {$in: [value, intValue]}
+                        : value;
+
+                    filter['products'] = {$elemMatch: {barcode: matchQuery}};
+                }
+            }
             else {
                 filter[field] = value;
             }

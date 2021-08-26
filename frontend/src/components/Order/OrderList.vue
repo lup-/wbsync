@@ -215,6 +215,7 @@
                 return [
                     {text: 'Канал', id: 'source', type: 'select', items: this.sourceTypes, attrs: {multiple: true}},
                     {text: 'Заказ', id: 'id'},
+                    {text: 'Штрихкод', id: 'barcode'},
                     {text: 'Тип заказа', id: 'orderType', type: 'select', items: this.orderTypes, attrs: {multiple: true}},
                     {text: 'Продавец', id: 'keyId', type: 'select', items: keys, attrs: {multiple: true}},
                     {text: 'Статус', id: 'statusText', type: 'select', items: this.statusTypes, attrs: {multiple: true}},
