@@ -25,6 +25,11 @@
                                     <v-btn icon small v-bind="attrs" v-on="on"><v-icon>mdi-tshirt-v</v-icon></v-btn>
                                 </template>
                             </products-dialog>
+                            <raw-data-dialog v-model="rawDataDialogs[item.id]" :raw="item.raw" :order-id="item.id">
+                                <template v-slot:activator="{ on, attrs }">
+                                    <v-btn icon small v-bind="attrs" v-on="on"><v-icon>mdi-bug</v-icon></v-btn>
+                                </template>
+                            </raw-data-dialog>
                         </div>
                     </template>
                 </v-data-table>
@@ -37,9 +42,10 @@
     import moment from "moment"
     import FilterField from "../Filter/Filter"
     import ProductsDialog from "@/components/Order/ProductsDialog";
+    import RawDataDialog from "@/components/Order/RawDataDialog";
 
     export default {
-        components: {FilterField, ProductsDialog},
+        components: {FilterField, ProductsDialog, RawDataDialog},
         data() {
             return {
                 loading: false,
@@ -50,6 +56,7 @@
                 },
                 filter: {},
                 productDialogs: {},
+                rawDataDialogs: {},
 
                 allHeaders: [
                     {text: 'Источник данных', value: 'sourceType'},
@@ -157,8 +164,10 @@
                 let filteredFields = Object.keys(this.filter);
                 return this.allHeaders.filter(header => {
                     let notInFilter = filteredFields.indexOf(header.value) === -1;
+                    let filterValue = this.filter[header.value];
+                    let hasManyValues = filterValue instanceof Array && filterValue.length > 1;
                     let isDateFlag = dateFlagFields.indexOf(header.value) !== -1;
-                    return notInFilter || isDateFlag;
+                    return notInFilter || hasManyValues || isDateFlag;
                 });
             },
             items() {
@@ -178,6 +187,7 @@
                             products: order.products,
                             canceled: order.canceled ? moment.unix(order.canceled).format('DD.MM.YYYY') : '',
                             completed: order.completed ? moment.unix(order.completed).format('DD.MM.YYYY') : '',
+                            raw: order.raw
                         }
                     });
             },

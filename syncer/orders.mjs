@@ -126,6 +126,7 @@ function makeDbOrderFromWildberriesV2(wbv2Order, key) {
     }
 
     let isCanceled = wbv2Order.userStatus === 1 || wbv2Order.userStatus === 3 || wbv2Order.userStatus === 5;
+    let dateCreated = moment(wbv2Order.dateCreated).unix();
 
     return {
         source: 'wildberries',
@@ -134,9 +135,9 @@ function makeDbOrderFromWildberriesV2(wbv2Order, key) {
         keyId: key.id,
 
         id: wbv2Order.orderId,
-        updated: moment().unix(),
-        created: moment(wbv2Order.dateCreated).unix(),
-        canceled: isCanceled ? moment().unix() : false,
+        updated: dateCreated,
+        created: dateCreated,
+        canceled: isCanceled ? dateCreated : false,
         status: wbv2Order.status,
         statusText: statusTexts[wbv2Order.status],
         price: wbv2Order.totalPrice,
@@ -156,7 +157,7 @@ function makeDbOrderFromInsales(insalesOrder, key) {
         orderType: isFBO ? 'FBO' : 'FBS',
         keyId: key.id,
 
-        id: insalesOrder.id,
+        id: insalesOrder.number,
         updated: moment(insalesOrder.updated_at).unix(),
         created: moment(insalesOrder.created_at).unix(),
         canceled: isReturned ? moment(insalesOrder.updated_at).unix() : false,
@@ -368,7 +369,17 @@ async function syncJoinedWBOrders(key, db) {
     let preparedOrdersV1 = ordersV1.map(order => makeDbOrderFromWildberriesV1(order, key));
     let preparedOrdersV2 = ordersV2.map(order => makeDbOrderFromWildberriesV2(order, key));
     let joinedOrders = joinByArray(preparedOrdersV1.concat(preparedOrdersV2));
-    return syncCollectionItems(db, joinedOrders, 'orders', 'id', 'status');
+    let beforeUpdate = (updatedOrder, savedOrder) => {
+        if (updatedOrder.sourceType === 'v2') {
+            updatedOrder.updated = moment().unix();
+            if (savedOrder.canceled === false && updatedOrder.canceled !== false) {
+                updatedOrder.canceled = moment().unix();
+            }
+        }
+
+        return updatedOrder;
+    }
+    return syncCollectionItems(db, joinedOrders, 'orders', 'id', 'status', beforeUpdate);
 }
 async function syncInsalesOrders(key, db) {
     let insales = new InSales(key.insales_api_id, key.insales_api_password);

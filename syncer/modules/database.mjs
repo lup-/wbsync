@@ -1,4 +1,5 @@
 import {MongoClient} from "mongodb";
+import moment from "moment";
 
 const DB_HOST = process.env.MONGO_HOST;
 const DB_NAME = process.env.MONGO_DB;
@@ -57,7 +58,7 @@ function checkItemChanged(receivedVersion, savedVersion, checkUpdatedFieldName) 
     return savedVersion[checkUpdatedFieldName] !== receivedVersion[checkUpdatedFieldName];
 }
 
-async function syncCollectionItems(db, receivedItems, collectionName, idFieldName, checkUpdatedFieldName) {
+async function syncCollectionItems(db, receivedItems, collectionName, idFieldName, checkUpdatedFieldName, beforeUpdate = null) {
     let receivedIds = receivedItems.map(item => item[idFieldName]);
     let dbCollection = db.collection(collectionName);
 
@@ -94,6 +95,10 @@ async function syncCollectionItems(db, receivedItems, collectionName, idFieldNam
     for (let updatedItem of updatedItems) {
         let searchQuery = {};
         searchQuery[idFieldName] = updatedItem[idFieldName];
+        if (beforeUpdate) {
+            let savedItem = savedItems.find(savedItem => savedItem[idFieldName] === updatedItem[idFieldName]);
+            updatedItem = beforeUpdate(updatedItem, savedItem);
+        }
         try {
             await dbCollection.updateOne(searchQuery, {$set: updatedItem});
         }
