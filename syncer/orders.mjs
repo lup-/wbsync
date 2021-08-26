@@ -90,7 +90,7 @@ function makeDbOrderFromWildberriesV1(wbv1Order, key) {
     return {
         source: 'wildberries',
         sourceType: 'v1',
-        orderType: wbv1Order.number === 0 ? 'FBS' : 'FBO',
+        orderType: 'FBS/O',
         keyId: key.id,
 
         id: parseInt( wbv1Order.number !== 0 ? wbv1Order.number : wbv1Order.nmId ),
