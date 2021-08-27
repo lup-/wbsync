@@ -157,18 +157,7 @@
                 }, {});
             },
             visibleHeaders() {
-                let dateFlagFields = this.filterFields
-                    .filter(field => field.type === 'dateFlag')
-                    .map(field => field.id);
-
-                let filteredFields = Object.keys(this.filter);
-                return this.allHeaders.filter(header => {
-                    let notInFilter = filteredFields.indexOf(header.value) === -1;
-                    let filterValue = this.filter[header.value];
-                    let hasManyValues = filterValue instanceof Array && filterValue.length > 1;
-                    let isDateFlag = dateFlagFields.indexOf(header.value) !== -1;
-                    return notInFilter || hasManyValues || isDateFlag;
-                });
+                return this.allHeaders;
             },
             items() {
                 return this.loading

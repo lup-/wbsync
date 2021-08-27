@@ -3,53 +3,34 @@
         <v-row align="start" justify="start">
             <v-col cols="12">
                 <v-data-table
-                        dense
-                        :headers="headers"
-                        :items="items"
-                        :loading="loading"
-                        :options.sync="options"
-                        :server-items-length="totalItems"
-                        :items-per-page="50"
+                    dense
+                    :headers="headers"
+                    :items="items"
+                    :loading="loading"
+                    :options.sync="options"
+                    :server-items-length="totalItems"
+                    :items-per-page="15"
+                    multi-sort
+                    item-key="_id"
+                    locale="ru"
                 >
-                    <template v-slot:item.actions="{ item }">
-                        <v-btn icon small @click="editItem(item)"><v-icon>mdi-pencil</v-icon></v-btn>
-                        <v-btn icon small color="red" @click="deleteItem(item)"><v-icon>mdi-delete</v-icon></v-btn>
+                    <template v-slot:top>
+                        <filter-field v-model="filter" :fields="filterFields" label="Фильтр" outlined class="mb-6" @save="saveFilter"></filter-field>
+                    </template>
+                    <template v-slot:item.size="{ item }">
+                        {{[item.size.ru, item.size.de].filter(size => Boolean(size)).join('/')}}
                     </template>
                 </v-data-table>
             </v-col>
         </v-row>
-
-        <v-dialog
-                v-model="editDialog"
-                max-width="600px"
-        >
-            <v-card v-if="editedItem">
-                <v-card-title v-if="isNewEditing">
-                    Новый товар
-                    <v-spacer></v-spacer>
-                    <v-btn icon @click="close"><v-icon>mdi-close</v-icon></v-btn>
-                </v-card-title>
-                <v-card-title v-else>
-                    {{editedItem.title}}
-                    <v-spacer></v-spacer>
-                    <v-btn icon @click="close"><v-icon>mdi-close</v-icon></v-btn>
-                </v-card-title>
-                <v-card-text>
-                    <skill-detection-dialog v-model="editedItem" @unsaved="setUnsaved"></skill-detection-dialog>
-                </v-card-text>
-                <v-card-actions>
-                    <v-btn text @click="close">Отмена</v-btn>
-                    <v-spacer></v-spacer>
-                    <v-btn @click="save" :disabled="unsaved">Сохранить</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-
     </v-container>
 </template>
 
 <script>
+    import FilterField from "../Filter/Filter"
+
     export default {
+        components: {FilterField},
         data() {
             return {
                 defaultItem: {},
@@ -63,36 +44,74 @@
                 unsaved: false,
                 options: {},
 
-                search: '',
+                filter: {},
 
                 headers: [
                   {text: 'Название', value: 'title'},
                   {text: 'Цвет', value: 'color'},
                   {text: 'Размер', value: 'size'},
+                  {text: 'Артикул', value: 'sku'},
                   {text: 'Штрих-код', value: 'barcode'},
                   {text: 'Кол-во', value: 'quantity'},
-                  {text: 'Действия', value: 'actions', sortable: false, width: '20%'},
+                  //{text: 'Действия', value: 'actions', sortable: false, width: '20%'},
                 ],
+
+                filterFields: [
+                    {text: 'Артикул', id: 'sku'},
+                    {text: 'Штрихкод', id: 'barcode'},
+                    {text: 'Есть в остатках', id: 'hasQuantity', type: 'flag'},
+                ]
             }
         },
         watch: {
-            options: {
-                handler () {
-                    this.loadItems();
-                },
+            filter: {
                 deep: true,
+                handler() {
+                    this.loadItems();
+                }
             },
-            search() {
-                this.loadItems();
+            options: {
+                deep: true,
+                handler() {
+                    this.loadItems();
+                }
             }
+        },
+        async created() {
+            this.initFilter();
         },
         mounted () {
             this.loadItems();
         },
         methods: {
+            initFilter() {
+                let defaultFilter = {hasQuantity: true};
+                let savedFilter = localStorage.getItem('savedStockFilter');
+                if (!savedFilter) {
+                    this.filter = defaultFilter;
+                    return;
+                }
+
+                this.filter = JSON.parse(savedFilter);
+            },
+            saveFilter() {
+                localStorage.setItem('savedStockFilter', JSON.stringify(this.filter));
+                this.$store.commit('setSuccessMessage', 'Фильтр сохранен!');
+            },
             async loadItems() {
                 this.loading = true;
-                await this.$store.dispatch('stock/loadItems');
+                let sort = this.options.sortBy && this.options.sortBy.length > 0
+                    ? this.options.sortBy.reduce((sortFields, fieldId, index) => {
+                        let isDesc = this.options.sortDesc[index];
+                        sortFields[fieldId] = isDesc ? -1 : 1;
+                        return sortFields;
+                    }, {})
+                    : {};
+                let limit = this.options.itemsPerPage || 15;
+                let page = this.options.page || 1;
+                let offset = (page-1)*limit;
+
+                await this.$store.dispatch('stock/loadItems', {filter: this.filter, sort, limit, offset});
                 this.loading = false;
             },
             deleteItem(item) {
@@ -132,7 +151,7 @@
                     : this.$store.state.stock.list;
             },
             totalItems() {
-                return this.items.length;
+                return this.$store.state.stock.totalCount;
             }
         }
     }

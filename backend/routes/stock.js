@@ -11,27 +11,61 @@ module.exports = {
         let inputFilter = ctx.request.body && ctx.request.body.filter
             ? ctx.request.body.filter || {}
             : {};
-        let limit = ctx.request.body.limit ? parseInt(ctx.request.body.limit) : 50;
+        let sort = ctx.request.body && ctx.request.body.sort
+            ? ctx.request.body.sort || {}
+            : {};
+
+        let limit = ctx.request.body.limit ? parseInt(ctx.request.body.limit) : null;
         let offset = ctx.request.body.offset ? parseInt(ctx.request.body.offset) : 0;
-        if (limit === -1) {
-            limit = 50;
-        }
 
         let defaultFilter = {
             'deleted': {$in: [null, false]}
         };
 
-        let filter = Object.assign(defaultFilter, inputFilter);
+        let filter = Object.assign(defaultFilter, {});
+        for (let field in inputFilter) {
+            let value = inputFilter[field];
+            if (value instanceof Array) {
+                filter[field] = {$in: value}
+            }
+            else if (field === "hasQuantity") {
+                filter['quantity'] = {$gt: 0};
+            }
+            else if (field === "barcode") {
+                let intValue = null;
+                try {
+                    intValue = parseInt(value);
+                }
+                finally {
+                    let matchQuery = intValue !== null
+                        ? {$in: [value, intValue]}
+                        : value;
+
+                    filter['barcode'] = matchQuery;
+                }
+            }
+            else {
+                filter[field] = value;
+            }
+        }
 
         let db = await getDb();
-        let items = await db.collection(COLLECTION_NAME)
+        let cursor = db.collection(COLLECTION_NAME)
             .find(filter)
-            .skip(offset)
-            .limit(limit)
-            .toArray();
+            .sort(sort)
+            .skip(offset);
+
+        if (limit !== -1) {
+            cursor = cursor.limit(limit);
+        }
+
+        let items = await cursor.toArray();
+
+        let totalCount = await db.collection(COLLECTION_NAME).countDocuments(filter);
 
         let response = {};
         response[ITEMS_NAME] = items;
+        response['totalCount'] = totalCount;
 
         ctx.body = response;
     },

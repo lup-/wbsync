@@ -15,11 +15,8 @@ module.exports = {
             ? ctx.request.body.sort || {}
             : {};
 
-        let limit = ctx.request.body.limit ? parseInt(ctx.request.body.limit) : 50;
+        let limit = ctx.request.body.limit ? parseInt(ctx.request.body.limit) : null;
         let offset = ctx.request.body.offset ? parseInt(ctx.request.body.offset) : 0;
-        if (limit === -1) {
-            limit = 15;
-        }
 
         let defaultFilter = {
             'deleted': {$in: [null, false]}
@@ -68,12 +65,16 @@ module.exports = {
 
 
         let db = await getDb();
-        let items = await db.collection(COLLECTION_NAME)
+        let cursor = db.collection(COLLECTION_NAME)
             .find(filter)
             .sort(sort)
-            .skip(offset)
-            .limit(limit)
-            .toArray();
+            .skip(offset);
+
+        if (limit !== -1) {
+            cursor = cursor.limit(limit);
+        }
+
+        let items = await cursor.toArray();
 
         let totalCount = await db.collection(COLLECTION_NAME).countDocuments(filter);
 

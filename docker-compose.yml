@@ -36,7 +36,7 @@ services:
       - MONGO_DB=wbsync
     command: npm run start
 
-  updater:
+  orders_updater:
     image: node:15-alpine
     depends_on:
       - mongo
@@ -49,3 +49,18 @@ services:
       - FULL_UPDATE=${FULL_UPDATE}
       - DEBUG=${DEBUG}
     command: npm run orders
+
+  stocks_updater:
+    image: node:15-alpine
+    depends_on:
+      - mongo
+    volumes:
+      - ./syncer:/var/www
+      - ${STOCKS_IMPORT_FOLDER}:/var/www/import
+    working_dir: /var/www
+    environment:
+      - MONGO_HOST=mongo
+      - MONGO_DB=wbsync
+      - DEBUG=${DEBUG}
+      - JSON_PATH=${STOCKS_IMPORT_CONTAINER_PATH}
+    command: npm run stocks

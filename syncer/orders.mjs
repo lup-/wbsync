@@ -3,6 +3,7 @@ import createDebug from "debug";
 import {Wildberries} from "./modules/wildberries/index.mjs";
 import {InSales} from "./modules/insales/index.mjs";
 import {getDb, syncCollectionItems} from "./modules/database.mjs";
+import {getUniqueCodeByProps} from "./modules/utils.mjs";
 import clone from "lodash.clonedeep";
 
 const FULL_UPDATE = process.env['FULL_UPDATE'] === "1";
@@ -224,9 +225,6 @@ function joinObjects(object1, object2) {
 
     return joinedObject;
 }
-function getUniqueCodeByProps(product) {
-    return [product.sku, product.color || '*', product.size && product.size.ru ? product.size.ru || '*' : '*'].join('/');
-}
 function sameProductByBarcodeOrSku(product1, product2) {
     let hasBarcode = Boolean(product1.barcode) && Boolean(product2.barcode);
     let hasSku = Boolean(product1.sku) && Boolean(product2.sku);
@@ -438,7 +436,6 @@ async function updateWbOrdersInDb(keys, db) {
         await syncJoinedWBOrders(key, db);
     }
 }
-
 async function updateInsalesOrdersInDb(keys, db) {
     for (let key of keys) {
         debug('Syncing %s', key.title);

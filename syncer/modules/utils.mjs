@@ -21,4 +21,23 @@ function normalizeDate(someDate, defaultDate) {
     }
 }
 
-export {normalizeDate}
+function getUniqueCodeByProps(product) {
+    let size = '*';
+    let color = '*';
+
+    if (product.size.ru) {
+        size = product.size.ru;
+    }
+
+    if (product.size.de) {
+        size = product.size.de;
+    }
+
+    if (product.color) {
+        color = product.color;
+    }
+
+    return [product.sku, color, size].join('/');
+}
+
+export {normalizeDate, getUniqueCodeByProps}

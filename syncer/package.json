@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "orders": "node orders.mjs"
+    "orders": "node orders.mjs",
+    "stocks": "node stocks.mjs"
   },
   "keywords": [],
   "author": "",

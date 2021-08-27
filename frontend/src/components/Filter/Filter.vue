@@ -46,7 +46,7 @@
                                 @click.stop="noopFunction"
                                 @mousedown.stop="noopFunction"
                             ></v-select>
-                            <v-switch v-else-if="item.type === 'dateFlag'"
+                            <v-switch v-else-if="item.type === 'dateFlag' || item.type === 'flag'"
                                 v-model="values[item.id]"
                                 hide-details
                                 dense
@@ -153,7 +153,7 @@ export default {
 
                 return textValues.join(', ');
             }
-            else if (fieldParams.type === 'dateFlag') {
+            else if (fieldParams.type === 'dateFlag' || fieldParams.type === 'flag') {
                 return value ? 'Да' : 'Нет';
             }
             return value;
