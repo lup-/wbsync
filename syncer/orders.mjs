@@ -411,7 +411,7 @@ async function syncInsalesOrders(key, db) {
 
     let dateFrom = await getDateFrom(source, db);
     let orders = await insales.fetchOrders(dateFrom)
-    let preparedOrders = orders.map(order => makeDbOrderFromInsales(order, key));
+    let preparedOrders = orders.filter(order => Boolean(order)).map(order => makeDbOrderFromInsales(order, key));
     return syncCollectionItems(db, preparedOrders, 'orders', 'id', 'updated');
 }
 
