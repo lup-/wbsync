@@ -179,7 +179,7 @@ module.exports = {
             let compareItem = {id: item._id};
             compareItem[matchField] = item._id;
             for (let keySource of uniqueKeySources) {
-                let stock = item.stocks.find(stock => {
+                let stocks = item.stocks.filter(stock => {
                     let hasKey = keySource.keyId !== null;
                     let matchesKey = hasKey && keySource.keyId === stock.keyId;
                     let matchesSource = stock.source === keySource.source;
@@ -188,6 +188,8 @@ module.exports = {
                         ? matchesKey && matchesSource
                         : matchesSource;
                 });
+
+                let stock = stocks.length === 1 ? stocks[0] : stocks;
 
                 compareItem[keySource.id] = stock || null;
             }

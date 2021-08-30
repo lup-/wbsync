@@ -54,12 +54,14 @@
         watch: {
             filter: {
                 deep: true,
-                handler() {
-                    this.loadItems();
+                async handler() {
                     if (this.filter.onlyUnequal || this.filter.onlyToday) {
                         this.options.itemsPerPage = -1;
                         this.options.page = 1;
                     }
+
+                    await this.loadTodayOrders();
+                    await this.loadItems();
                 }
             },
             options: {
@@ -133,7 +135,7 @@
                 let limit = -1;
                 let offset = 0;
                 let sort = {updated: -1};
-                let filter = {updated: {$gte: today}};
+                let filter = {updated: {$gte: today}, source: this.filter.source};
 
                 await this.$store.dispatch('order/loadItems', {filter, sort, limit, offset});
                 this.loading = false;
@@ -156,6 +158,7 @@
 
                 let baseHeaders = [
                     {text: matchBySku ? 'Артикул' : 'Штрих-код', value: matchBySku ? 'sku' : 'barcode'},
+                    {text: 'Название', value: 'title'},
                     {text: 'Сегодня заказано', value: 'todaySum', sortable: false}
                 ];
 
@@ -175,7 +178,7 @@
                     : this.$store.state.stock.compare || [];
 
                 let compareItems = items.map(item => {
-                        let compareItem = {};
+                        let compareItem = {title: null};
                         if (item.sku) {
                             compareItem.sku = item.sku;
                         }
@@ -188,20 +191,45 @@
                         let firstValue = null;
                         let allValuesZero = true;
 
+                        let source = this.filter.source && this.filter.source[0] || '1c';
                         for (let variant of variants) {
                             let stockItem = item[variant.id];
-                            let value = stockItem && typeof (stockItem[compareField]) !== 'undefined'
-                                ? stockItem[compareField]
-                                : null;
-
-                            if (firstValue === null) {
-                                firstValue = value;
+                            let value = null;
+                            if (stockItem instanceof Array) {
+                                value = stockItem.map(stockItem => {
+                                    return typeof (stockItem[compareField]) !== 'undefined'
+                                        ? stockItem[compareField]
+                                        : null;
+                                });
+                            }
+                            else {
+                                value = stockItem && typeof (stockItem[compareField]) !== 'undefined'
+                                    ? stockItem[compareField]
+                                    : null;
                             }
 
-                            allValuesEqual = allValuesEqual && firstValue === value;
-                            allValuesZero = allValuesZero && Number(value) === 0;
+                            if (firstValue === null) {
+                                firstValue = value instanceof Array ? value[0] : value;
+                            }
 
-                            compareItem[variant.id] = value;
+                            if (value instanceof Array) {
+                                for (let singleValue of value) {
+                                    allValuesEqual = allValuesEqual && firstValue === singleValue;
+                                    allValuesZero = allValuesZero && Number(singleValue) === 0;
+                                }
+                            }
+                            else {
+                                allValuesEqual = allValuesEqual && firstValue === value;
+                                allValuesZero = allValuesZero && Number(value) === 0;
+                            }
+
+                            compareItem[variant.id] = value instanceof Array
+                                ? value.join(', ')
+                                : value;
+
+                            if (variant.source === source) {
+                                compareItem.title = stockItem.title;
+                            }
                         }
 
                         compareItem.todaySum = this.todayStockCount[item.id] || 0;

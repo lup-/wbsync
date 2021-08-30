@@ -20,6 +20,9 @@
                     <template v-slot:item.size="{ item }">
                         {{[item.size.ru, item.size.de].filter(size => Boolean(size)).join('/')}}
                     </template>
+                    <template v-slot:item.keyId="{item}">
+                        {{sourceTitle(item.keyId)}}
+                    </template>
                 </v-data-table>
             </v-col>
         </v-row>
@@ -48,6 +51,7 @@
                 filter: {},
 
                 headers: [
+                  {text: 'Источник', value: 'keyId'},
                   {text: 'Название', value: 'title'},
                   {text: 'Цвет', value: 'color'},
                   {text: 'Размер', value: 'size'},
@@ -56,12 +60,6 @@
                   {text: 'Кол-во', value: 'quantity'},
                   //{text: 'Действия', value: 'actions', sortable: false, width: '20%'},
                 ],
-
-                filterFields: [
-                    {text: 'Артикул', id: 'sku'},
-                    {text: 'Штрихкод', id: 'barcode'},
-                    {text: 'Есть в остатках', id: 'hasQuantity', type: 'flag'},
-                ]
             }
         },
         watch: {
@@ -81,12 +79,13 @@
         async created() {
             this.initFilter();
         },
-        mounted () {
+        async mounted () {
+            await this.loadKeys();
             this.loadItems();
         },
         methods: {
             initFilter() {
-                let defaultFilter = {hasQuantity: true};
+                let defaultFilter = {hasQuantity: true, keyId: [null]};
                 let savedFilter = localStorage.getItem('savedStockFilter');
                 if (!savedFilter) {
                     this.filter = defaultFilter;
@@ -98,6 +97,11 @@
             saveFilter() {
                 localStorage.setItem('savedStockFilter', JSON.stringify(this.filter));
                 this.$store.commit('setSuccessMessage', 'Фильтр сохранен!');
+            },
+            async loadKeys() {
+                this.loading = true;
+                await this.$store.dispatch('key/loadItems');
+                this.loading = false;
             },
             async loadItems() {
                 this.loading = true;
@@ -112,7 +116,13 @@
                 let page = this.options.page || 1;
                 let offset = (page-1)*limit;
                 let filter = clone(this.filter);
-                filter['source'] = '1c';
+                if (this.filter.keyId && this.filter.keyId.length === 1 && this.filter.keyId[0] === null) {
+                    filter['source'] = '1c';
+                }
+
+                if (!this.filter.keyId) {
+                    filter['source'] = '1c';
+                }
 
                 await this.$store.dispatch('stock/loadItems', {filter, sort, limit, offset});
                 this.loading = false;
@@ -143,6 +153,14 @@
                 this.close();
                 return this.loadItems();
             },
+            sourceTitle(searchValue) {
+                if (typeof (searchValue) === 'undefined') {
+                    searchValue = null;
+                }
+
+                let source = this.sources.find(source => source.value === searchValue);
+                return source ? source.text : null;
+            }
         },
         computed: {
             isNewEditing() {
@@ -155,6 +173,25 @@
             },
             totalItems() {
                 return this.$store.state.stock.totalCount;
+            },
+            sources() {
+                let sources = [{text: '1C', value: null}];
+                let keys = this.$store.state.key.list;
+                if (keys) {
+                    for (let key of this.$store.state.key.list) {
+                        sources.push({text: key.title, value: key.id});
+                    }
+                }
+
+                return sources;
+            },
+            filterFields() {
+                return [
+                    {text: 'Источник', id: 'keyId', type: 'select', items: this.sources, attrs: {multiple: true}},
+                    {text: 'Артикул', id: 'sku'},
+                    {text: 'Штрихкод', id: 'barcode'},
+                    {text: 'Есть в остатках', id: 'hasQuantity', type: 'flag'},
+                ];
             }
         }
     }
