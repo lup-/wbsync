@@ -56,6 +56,10 @@
                 deep: true,
                 handler() {
                     this.loadItems();
+                    if (this.filter.onlyUnequal || this.filter.onlyToday) {
+                        this.options.itemsPerPage = -1;
+                        this.options.page = 1;
+                    }
                 }
             },
             options: {
@@ -170,7 +174,7 @@
                     ? []
                     : this.$store.state.stock.compare || [];
 
-                return items.map(item => {
+                let compareItems = items.map(item => {
                         let compareItem = {};
                         if (item.sku) {
                             compareItem.sku = item.sku;
@@ -180,22 +184,47 @@
                             compareItem.barcode = item.barcode;
                         }
 
+                        let allValuesEqual = true;
+                        let firstValue = null;
+                        let allValuesZero = true;
+
                         for (let variant of variants) {
                             let stockItem = item[variant.id];
                             let value = stockItem && typeof (stockItem[compareField]) !== 'undefined'
                                 ? stockItem[compareField]
                                 : null;
 
+                            if (firstValue === null) {
+                                firstValue = value;
+                            }
+
+                            allValuesEqual = allValuesEqual && firstValue === value;
+                            allValuesZero = allValuesZero && Number(value) === 0;
+
                             compareItem[variant.id] = value;
                         }
 
                         compareItem.todaySum = this.todayStockCount[item.id] || 0;
+                        compareItem.allValuesEqual = allValuesEqual;
+                        compareItem.allValuesZero = allValuesZero;
 
                         return compareItem;
                     });
+
+                if (this.onlyUnequal) {
+                    compareItems = compareItems.filter(item => item.allValuesEqual === false && item.allValuesZero === false);
+                }
+
+                if (this.onlyToday) {
+                    compareItems = compareItems.filter(item => item.todaySum > 0);
+                }
+
+                return compareItems;
             },
             totalItems() {
-                return this.$store.state.stock.compareCount || 0;
+                return this.onlyUnequal || this.onlyToday
+                    ? this.items.length
+                    : this.$store.state.stock.compareCount || 0;
             },
             sourceTypes() {
                 return this.$store.state.order.filterFieldEnums && this.$store.state.order.filterFieldEnums.source
@@ -209,7 +238,9 @@
                     {text: 'Канал для кол-ва в заказах', id: 'source', type: 'select', items: this.sourceTypes, attrs: {multiple: true}},
                     {text: 'Артикул', id: 'sku'},
                     {text: 'Штрихкод', id: 'barcode'},
-                    {text: 'Только совпадения', id: 'onlyMatched', type: 'flag'},
+                    {text: 'Только в нескольких источниках', id: 'onlyMatched', type: 'flag'},
+                    {text: 'Только различия', id: 'onlyUnequal', type: 'flag'},
+                    {text: 'Есть в заказах сегодня', id: 'onlyToday', type: 'flag'},
                 ];
             },
             compareField() {
@@ -224,6 +255,16 @@
                 return this.loading
                     ? []
                     : this.$store.state.order.list || [];
+            },
+            onlyUnequal() {
+                return typeof (this.filter.onlyUnequal) === 'boolean'
+                    ? this.filter.onlyUnequal
+                    : false;
+            },
+            onlyToday() {
+                return typeof (this.filter.onlyToday) === 'boolean'
+                    ? this.filter.onlyToday
+                    : false;
             },
             todayStockCount() {
                 let stockCount = {};
