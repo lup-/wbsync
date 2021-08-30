@@ -55,14 +55,18 @@ async function getDb (dbName = false) {
 }
 
 function checkItemChanged(receivedVersion, savedVersion, checkUpdatedFieldName) {
+    if (!checkUpdatedFieldName) {
+        return true;
+    }
+
     return savedVersion[checkUpdatedFieldName] !== receivedVersion[checkUpdatedFieldName];
 }
 
-async function syncCollectionItems(db, receivedItems, collectionName, idFieldName, checkUpdatedFieldName, beforeUpdate = null) {
+async function syncCollectionItems(db, receivedItems, collectionName, idFieldName, checkUpdatedFieldName, beforeUpdate = null, inputQuery = {}) {
     let receivedIds = receivedItems.map(item => item[idFieldName]);
     let dbCollection = db.collection(collectionName);
 
-    let query = {};
+    let query = inputQuery || {};
     query[idFieldName] = {$in: receivedIds};
     let savedItems = await dbCollection.find(query).toArray();
     let savedIds = savedItems.map(item => item[idFieldName]);
@@ -99,10 +103,16 @@ async function syncCollectionItems(db, receivedItems, collectionName, idFieldNam
             let savedItem = savedItems.find(savedItem => savedItem[idFieldName] === updatedItem[idFieldName]);
             updatedItem = beforeUpdate(updatedItem, savedItem);
         }
-        try {
-            await dbCollection.updateOne(searchQuery, {$set: updatedItem});
+
+        if (updatedItem) {
+            try {
+                await dbCollection.updateOne(searchQuery, {$set: updatedItem});
+            }
+            catch (e) {
+                isSuccess = false;
+            }
         }
-        catch (e) {
+        else {
             isSuccess = false;
         }
     }

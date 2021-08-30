@@ -40,4 +40,23 @@ function getUniqueCodeByProps(product) {
     return [product.sku, color, size].join('/');
 }
 
-export {normalizeDate, getUniqueCodeByProps}
+function splitIntoChunks(array, chunkSize) {
+    let chunks = [];
+    let currentChunk = [];
+    for (let item of array) {
+        currentChunk.push(item);
+
+        if (currentChunk.length >= chunkSize) {
+            chunks.push(currentChunk);
+            currentChunk = [];
+        }
+    }
+
+    if (currentChunk.length > 0) {
+        chunks.push(currentChunk);
+    }
+
+    return chunks;
+}
+
+export {normalizeDate, getUniqueCodeByProps, splitIntoChunks}

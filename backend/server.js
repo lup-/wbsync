@@ -15,6 +15,7 @@ const router = new Router();
 
 router
     .post('/api/stock/list', stock.list.bind(stock))
+    .post('/api/stock/match', stock.match.bind(stock))
     .post('/api/stock/add', stock.add.bind(stock))
     .post('/api/stock/update', stock.update.bind(stock))
     .post('/api/stock/delete', stock.delete.bind(stock));

@@ -28,6 +28,7 @@
 
 <script>
     import FilterField from "../Filter/Filter"
+    import clone from "lodash.clonedeep";
 
     export default {
         components: {FilterField},
@@ -110,8 +111,10 @@
                 let limit = this.options.itemsPerPage || 15;
                 let page = this.options.page || 1;
                 let offset = (page-1)*limit;
+                let filter = clone(this.filter);
+                filter['source'] = '1c';
 
-                await this.$store.dispatch('stock/loadItems', {filter: this.filter, sort, limit, offset});
+                await this.$store.dispatch('stock/loadItems', {filter, sort, limit, offset});
                 this.loading = false;
             },
             deleteItem(item) {

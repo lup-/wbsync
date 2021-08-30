@@ -15,6 +15,7 @@ export default new Vuex.Store({
         loading: false,
         routes: [
             {code: 'stockList', title: 'Остатки', icon: 'mdi-tshirt-v'},
+            {code: 'compareList', title: 'Сравнение остатков', icon: 'mdi-compare'},
             {code: 'orderList', title: 'Заказы', icon: 'mdi-cart'},
             {code: 'keyList', title: 'Ключи доступа', icon: 'mdi-key'},
             {code: 'usersList', title: 'Пользователи', icon: 'mdi-account'},

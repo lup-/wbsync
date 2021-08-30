@@ -30,9 +30,14 @@ module.exports = {
                 filter[field] = {$in: value}
             }
             else if (dateFlagFilters.indexOf(field) !== -1) {
-                filter[field] = value
-                    ? {$gt: 0}
-                    : {$in: [null, false, 0]};
+                if (typeof(value) === 'boolean') {
+                    filter[field] = value
+                        ? {$gt: 0}
+                        : {$in: [null, false, 0]};
+                }
+                else {
+                    filter[field] = value;
+                }
             }
             else if (field === "id") {
                 let intValue = null;

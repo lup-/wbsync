@@ -84,24 +84,9 @@ function makeDbProductsFromWildberriesV2(wbv2Order) {
         price: wbv2Order.totalPrice,
     }];
 }
-function makeDbProductsFromInsales(insalesOrder) {
-    return insalesOrder.order_lines.map(orderLine => {
-        return {
-            id: orderLine.product_id,
-            sku: orderLine.sku,
-            color: null,
-            size: {
-                ru: null,
-                de: null
-            },
-            variant: orderLine.variant_id,
-            title: orderLine.title,
-            brand: null,
-            barcode: orderLine.barcode,
-            quantity: orderLine.quantity,
-            price: parseInt( orderLine.full_total_price * 100)
-        }
-    })
+function makeDbProductsFromInsales(insalesOrder, key) {
+    let insales = new InSales();
+    return insalesOrder.order_lines.map(orderLine => insales.makeDbProductFromOrderLine(orderLine, key))
 }
 
 function makeDbOrderFromWildberriesV1(wbv1Order, key) {
@@ -203,7 +188,7 @@ function makeDbOrderFromInsales(insalesOrder, key) {
         statusText: insalesOrder.custom_status ? insalesOrder.custom_status.title : null,
         price: parseInt(insalesOrder.total_price * 100),
 
-        products: makeDbProductsFromInsales(insalesOrder),
+        products: makeDbProductsFromInsales(insalesOrder, key),
 
         raw: insalesOrder
     }

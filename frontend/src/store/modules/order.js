@@ -17,7 +17,8 @@ export default new Crud({
 
     NAME_ITEMS,
     NAME_ITEM
-}, {
+},
+{
     state: {
         filterFieldEnums: null,
     },

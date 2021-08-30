@@ -4,6 +4,7 @@ import {getDb, syncCollectionItems} from "./modules/database.mjs";
 import {getUniqueCodeByProps} from "./modules/utils.mjs";
 import clone from "lodash.clonedeep";
 import moment from "moment";
+import {InSales} from "./modules/insales/index.mjs";
 
 const debug = createDebug('syncer:products');
 const jsonPath = process.env['JSON_PATH'];
@@ -46,6 +47,7 @@ function prepareProducts(products) {
             dstProduct.size.de = jeansSize;
         }
 
+        dstProduct.source = '1c';
         dstProduct.quantity = parseInt(srcProduct.quantity);
         dstProduct.id = getId(dstProduct);
         dstProduct.created = moment().unix();
@@ -56,15 +58,45 @@ function prepareProducts(products) {
 }
 
 (async () => {
-    debug('Starting products sync');
+    debug('Starting stocks sync');
     debug('Reading file %s', jsonPath);
     let rawData = fs.readFileSync(jsonPath);
     let products = JSON.parse(rawData);
     let preparedProducts = prepareProducts(products);
 
-    debug('Sync %s products with db...', products.length);
+    debug('Sync 1C %s stocks with db...', products.length);
     let db = await getDb();
-    await syncCollectionItems(db, preparedProducts, 'stock', 'id', 'quantity');
+    await syncCollectionItems(
+        db,
+        preparedProducts,
+        'stock',
+        'id',
+        'quantity',
+        null,
+        {source: '1c'}
+    );
+
+    debug('Sync Insales stocks with db...', products.length);
+    let keys = await db.collection('keys').find({deleted: {$in: [null, false]}}).toArray();
+    let insalesKeys = keys.filter(key => key.type === 'insales');
+    if (insalesKeys.length > 0) {
+        let dbStocks = await db.collection('stock').find({deleted: {$in: [null, false]}}).toArray();
+        debug('Sync Insales stocks count: %s', dbStocks.length);
+        for (let key of insalesKeys) {
+            debug('Syncing %s', key.title);
+            let insales = new InSales(key.insales_api_id, key.insales_api_password);
+            let insalesStocks = await insales.getMatchedStocks(dbStocks, key);
+            await syncCollectionItems(
+                db,
+                insalesStocks,
+                'stock',
+                'id',
+                'quantity',
+                null,
+                {source: 'insales', keyId: key.id}
+            );
+        }
+    }
 
     debug('Done!');
     process.exit();

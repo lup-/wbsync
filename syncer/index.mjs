@@ -1,39 +1,28 @@
-import moment from "moment";
-import {Wildberries} from "./modules/wildberries/index.mjs";
 import {InSales} from "./modules/insales/index.mjs";
-import {Syncer} from "./modules/syncer.mjs";
 import {getDb} from "./modules/database.mjs";
+import createDebug from "debug";
 
-const WB_API_V1_KEY_IP = process.env['WB_STAT_64_API_KEY_IP'];
-const WB_API_V1_KEY_OOO = process.env['WB_STAT_64_API_KEY_OOO'];
-const WB_API_V2_KEY_IP = process.env['WB_NEW_API_KEY_IP'];
-const WB_API_V2_KEY_OOO = process.env['WB_NEW_API_KEY_OOO'];
-
-const INSALES_API_ID=process.env['INSALES_API_ID'];
-const INSALES_API_PASSWORD=process.env['INSALES_API_PASSWORD'];
-
-async function processCycle(wbv1Key, wbv2Key) {
-    let db = await getDb();
-    let insales = new InSales(INSALES_API_ID, INSALES_API_PASSWORD);
-    let wb = new Wildberries(wbv1Key, wbv2Key);
-
-    let syncer = new Syncer(db, insales, wb);
-    let today = moment().startOf('d');
-    let someOtherDay = today.clone().subtract('15', 'd');
-
-    let activeFbsOrders = await wb.getAllFBSOrders(someOtherDay);
-    let wbProducts = activeFbsOrders.map(wb.getProductFromOrder);
-
-    await syncer.prepareInsalesData();
-    await syncer.syncWbProducts(wbProducts);
-
-    let newWbFbsOrders = await syncer.filterProcessedOrders(activeFbsOrders);
-    if (newWbFbsOrders.length > 0) {
-        await syncer.addNewWbOrders(newWbFbsOrders);
-    }
-}
-
+const debug = createDebug('syncer:uploadStocks');
+const uploadKeyId = process.argv[2]; //xihRLvsii
 
 (async () => {
-    await processCycle(WB_API_V1_KEY_OOO, WB_API_V2_KEY_OOO);
+    debug('Starting stocks upload');
+    debug('Key id: %s', uploadKeyId);
+
+    let db = await getDb();
+    let key = await db.collection('keys').findOne({id: uploadKeyId});
+    if (!key) {
+        process.exit();
+        return;
+    }
+
+    debug('Key %s, type: %s', key.title, key.type);
+    if (key.type === 'insales') {
+        let insales = new InSales(key.insales_api_id, key.insales_api_password);
+        let dbStocks = await db.collection('stock').find({deleted: {$in: [null, false]}}).toArray();
+        await insales.syncLeftovers(dbStocks);
+    }
+
+    debug('Done!');
+    process.exit();
 })();

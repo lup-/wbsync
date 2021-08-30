@@ -5,6 +5,7 @@ import Home from "../components/Home";
 import Login from '../components/Users/Login';
 import StockList from "../components/Stock/StockList";
 import OrderList from "../components/Order/OrderList";
+import CompareList from "@/components/Compare/CompareList";
 import KeyList from "../components/Key/KeyList";
 import UsersList from "../components/Users/List";
 import UserEdit from "../components/Users/Edit";
@@ -17,6 +18,7 @@ const routes = [
     { name: 'home', path: '/', component: Home, meta: {requiresAuth: true, group: 'home'} },
     { name: 'login', path: '/login', component: Login },
     { name: 'stockList', path: '/stock/', component: StockList, meta: {requiresAuth: true, group: 'stockList'} },
+    { name: 'compareList', path: '/compare/', component: CompareList, meta: {requiresAuth: true, group: 'compareList'} },
     { name: 'orderList', path: '/order/', component: OrderList, meta: {requiresAuth: true, group: 'orderList'} },
     { name: 'keyList', path: '/key/', component: KeyList, meta: {requiresAuth: true, group: 'keyList'} },
     { name: 'usersList', path: '/users/', component: UsersList, meta: {requiresAuth: true, group: 'usersList'} },

@@ -37,11 +37,12 @@
                                 v-bind="item.attrs"
                                 outlined
                                 hide-details
-                                clearable
-                                chips
-                                deletable-chips
+                                :clearable="!item.single"
+                                :chips="!item.single"
+                                :deletable-chips="!item.single"
                                 dense
                                 background-color="white"
+                                :multiple="!item.single"
                                 @input="updateActive(item.id)"
                                 @click.stop="noopFunction"
                                 @mousedown.stop="noopFunction"
@@ -155,6 +156,10 @@ export default {
             }
             else if (fieldParams.type === 'dateFlag' || fieldParams.type === 'flag') {
                 return value ? 'Да' : 'Нет';
+            }
+            else if (fieldParams.type === 'select') {
+                let valueItem = fieldParams.items.find(item => item.value === value);
+                return valueItem ? valueItem.text : value;
             }
             return value;
         },
