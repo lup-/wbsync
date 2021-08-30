@@ -228,7 +228,7 @@
                                 : value;
 
                             if (variant.source === source) {
-                                compareItem.title = stockItem.title;
+                                compareItem.title = stockItem ? stockItem.title : null;
                             }
                         }
 
