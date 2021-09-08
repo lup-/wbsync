@@ -41,6 +41,8 @@
         <v-app-bar app clipped-left>
             <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
             <v-toolbar-title>Остаткино</v-toolbar-title>
+            <v-spacer></v-spacer>
+            <router-view name="header"></router-view>
             <v-progress-linear
                     :active="isLoading"
                     :indeterminate="isLoading"
@@ -50,7 +52,7 @@
         </v-app-bar>
 
         <v-main>
-            <router-view></router-view>
+            <router-view name="content"></router-view>
         </v-main>
 
         <v-snackbar v-model="showMessage" :timeout="5000" :color="appMessage.color">

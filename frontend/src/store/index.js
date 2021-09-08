@@ -5,6 +5,7 @@ import stock from "./modules/stock";
 import key from "./modules/key";
 import user from "./modules/user";
 import order from "./modules/order";
+import job from "@/store/modules/job";
 
 Vue.use(Vuex);
 
@@ -14,6 +15,7 @@ export default new Vuex.Store({
         appMessage: false,
         loading: false,
         routes: [
+            {code: 'home', title: 'Панель управления', icon: 'mdi-home'},
             {code: 'stockList', title: 'Остатки', icon: 'mdi-tshirt-v'},
             {code: 'compareList', title: 'Сравнение остатков', icon: 'mdi-compare'},
             {code: 'orderList', title: 'Заказы', icon: 'mdi-cart'},
@@ -48,6 +50,7 @@ export default new Vuex.Store({
         stock,
         user,
         key,
-        order
+        order,
+        job
     }
 })

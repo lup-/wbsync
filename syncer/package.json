@@ -6,13 +6,15 @@
   "type": "module",
   "scripts": {
     "orders": "node orders.mjs",
-    "stocks": "node stocks.mjs"
+    "stocks": "node stocks.mjs",
+    "jobs": "node jobs.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "axios": "^0.21.1",
+    "bee-queue": "^1.4.0",
     "debug": "^4.3.2",
     "lodash.clonedeep": "^4.5.0",
     "moment": "^2.29.1",

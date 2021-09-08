@@ -11,6 +11,7 @@
                     :server-items-length="totalItems"
                     :items-per-page="15"
                     multi-sort
+                    show-group-by
                     item-key="_id"
                     locale="ru"
                 >
@@ -64,7 +65,8 @@
                     {text: 'Канал', value: 'source'},
                     {text: 'Продавец', value: 'keyId', width: '20%'},
                     {text: 'Заказ', value: 'id'},
-                    {text: 'Дата обновления', value: 'updated'},
+                    {text: 'Обновлен', value: 'updated'},
+                    {text: 'Создан', value: 'created'},
                     {text: 'Статус', value: 'statusText', width: '30%'},
                     {text: 'Сумма', value: 'price'},
                     {text: 'Отменен', value: 'canceled'},
@@ -171,6 +173,7 @@
                             keyId: this.keys[order.keyId],
                             id: order.id,
                             updated: moment.unix(order.updated).format('DD.MM.YYYY'),
+                            created: moment.unix(order.created).format('DD.MM.YYYY'),
                             statusText: order.statusText,
                             price: order.price / 100,
                             products: order.products,

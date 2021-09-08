@@ -6,6 +6,7 @@ const stock = require('./routes/stock');
 const order = require('./routes/order');
 const key = require('./routes/key');
 const users = require('./routes/users');
+const job = require('./routes/job');
 
 const PORT = 3000;
 const HOST = '0.0.0.0';
@@ -40,6 +41,12 @@ router
     .post('/api/user/delete', users.delete.bind(users))
     .post('/api/user/check', users.check.bind(users))
     .post('/api/user/login', users.login.bind(users));
+
+router
+    .post('/api/job/stocks', job.syncStocks.bind(job))
+    .post('/api/job/orders', job.syncOrders.bind(job))
+    .post('/api/job/status', job.status.bind(job))
+    .get('/api/job/last', job.lastJobs.bind(job));
 
 app
     .use(bodyParser({

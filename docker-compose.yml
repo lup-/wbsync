@@ -20,6 +20,12 @@ services:
     depends_on:
       - backend
 
+  redis:
+    image: redis
+    restart: ${RESTART}
+    ports:
+      - ${REDIS_PORT}:6379
+
   backend:
     image: node
     restart: ${RESTART}
@@ -28,12 +34,14 @@ services:
       - ${BACKEND_DEBUG_PORT}:9229
     depends_on:
       - mongo
+      - redis
     volumes:
       - ./backend:/var/www
     working_dir: /var/www
     environment:
       - MONGO_HOST=mongo
       - MONGO_DB=wbsync
+      - REDIS=redis
     command: npm run start
 
   orders_updater:
@@ -64,3 +72,20 @@ services:
       - DEBUG=${DEBUG}
       - JSON_PATH=${STOCKS_IMPORT_CONTAINER_PATH}
     command: npm run stocks
+
+  updater:
+    image: node:15-alpine
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - ./syncer:/var/www
+      - ${STOCKS_IMPORT_FOLDER}:/var/www/import
+    working_dir: /var/www
+    environment:
+      - MONGO_HOST=mongo
+      - MONGO_DB=wbsync
+      - DEBUG=${DEBUG}
+      - JSON_PATH=${STOCKS_IMPORT_CONTAINER_PATH}
+      - REDIS=redis
+    command: npm run jobs

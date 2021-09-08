@@ -261,6 +261,10 @@ export class InSales {
     async syncLeftovers(dbStocks) {
         const MAX_VARIANTS_PER_REQUEST = 100;
 
+        if (dbStocks.length === 0) {
+            return true;
+        }
+
         let insalesProducts = await this.fetchProducts();
         let options = await this.fetchOptions();
 

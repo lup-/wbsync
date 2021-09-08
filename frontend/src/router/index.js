@@ -10,19 +10,22 @@ import KeyList from "../components/Key/KeyList";
 import UsersList from "../components/Users/List";
 import UserEdit from "../components/Users/Edit";
 
+import CompareHeader from "@/components/Compare/CompareHeader";
+import OrderHeader from "@/components/Order/OrderHeader";
+
 import store from "../store";
 
 Vue.use(VueRouter);
 
 const routes = [
-    { name: 'home', path: '/', component: Home, meta: {requiresAuth: true, group: 'home'} },
-    { name: 'login', path: '/login', component: Login },
-    { name: 'stockList', path: '/stock/', component: StockList, meta: {requiresAuth: true, group: 'stockList'} },
-    { name: 'compareList', path: '/compare/', component: CompareList, meta: {requiresAuth: true, group: 'compareList'} },
-    { name: 'orderList', path: '/order/', component: OrderList, meta: {requiresAuth: true, group: 'orderList'} },
-    { name: 'keyList', path: '/key/', component: KeyList, meta: {requiresAuth: true, group: 'keyList'} },
-    { name: 'usersList', path: '/users/', component: UsersList, meta: {requiresAuth: true, group: 'usersList'} },
-    { name: 'userEdit', path: '/user/:id', component: UserEdit, meta: {requiresAuth: true, group: 'usersList'} },
+    { name: 'home', path: '/', components: {content: Home}, meta: {requiresAuth: true, group: 'home'} },
+    { name: 'login', path: '/login', components: {content: Login} },
+    { name: 'stockList', path: '/stock/', components: {content: StockList, header: CompareHeader}, meta: {requiresAuth: true, group: 'stockList'} },
+    { name: 'compareList', path: '/compare/', components: {content: CompareList, header: CompareHeader}, meta: {requiresAuth: true, group: 'compareList'} },
+    { name: 'orderList', path: '/order/', components: {content: OrderList, header: OrderHeader}, meta: {requiresAuth: true, group: 'orderList'} },
+    { name: 'keyList', path: '/key/', components: {content: KeyList}, meta: {requiresAuth: true, group: 'keyList'} },
+    { name: 'usersList', path: '/users/', components: {content: UsersList}, meta: {requiresAuth: true, group: 'usersList'} },
+    { name: 'userEdit', path: '/user/:id', components: {content: UserEdit}, meta: {requiresAuth: true, group: 'usersList'} },
 ]
 
 const router = new VueRouter({

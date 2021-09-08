@@ -4,6 +4,7 @@
             <v-col cols="12">
                 <v-data-table
                     dense
+                    v-model="selected"
                     :headers="headers"
                     :items="items"
                     :loading="loading"
@@ -11,11 +12,29 @@
                     :server-items-length="totalItems"
                     :items-per-page="15"
                     multi-sort
-                    item-key="id"
+                    show-select
+                    selectable-key="barcode"
+                    item-key="barcode"
                     locale="ru"
                 >
                     <template v-slot:top>
                         <filter-field v-model="filter" :fields="filterFields" label="Фильтр" outlined class="mb-6" @save="saveFilter"></filter-field>
+                    </template>
+                    <template v-slot:item.title="{item}">
+                        <div>{{item.title}}</div>
+                        <small class="text--disabled" v-if="getInsalesTitle(item)">{{getInsalesTitle(item)}}</small>
+                    </template>
+                    <template v-slot:footer.prepend>
+                        <upload-stocks-dialog
+                            v-model="upload"
+                            :show="showUpload"
+                            @show="toggleUploadDialog"
+                            @ok="uploadStocks"
+                        >
+                            <template v-slot:activator="{ on, attrs }">
+                                <v-btn color="primary" :disabled="selected && selected.length === 0" v-bind="attrs" v-on="on">Отправить остатки</v-btn>
+                            </template>
+                        </upload-stocks-dialog>
                     </template>
                 </v-data-table>
             </v-col>
@@ -25,10 +44,11 @@
 
 <script>
     import FilterField from "../Filter/Filter"
+    import UploadStocksDialog from "@/components/Compare/UploadStocksDialog";
     import moment from "moment";
 
     export default {
-        components: {FilterField},
+        components: {FilterField, UploadStocksDialog},
         data() {
             let matchFields = [
                 {text: 'Штрихкод', value: 'barcode'},
@@ -45,6 +65,9 @@
                 loading: false,
                 options: {},
                 filter: {},
+                selected: [],
+                upload: {},
+                showUpload: false,
 
                 matchFields,
                 compareFields,
@@ -145,6 +168,34 @@
                 await this.$store.dispatch('order/loadFilterEnums');
                 this.loading = false;
             },
+            toggleUploadDialog(dialogIsShown) {
+                this.showUpload = dialogIsShown;
+            },
+            uploadStocks() {
+                let jobData = {
+                    ids: this.selected.map(item => item.barcode),
+                    idField: 'barcode',
+                    from: this.upload.from,
+                    to: this.upload.to
+                }
+
+                return this.$store.dispatch('job/uploadStocks', jobData);
+            },
+            getInsalesTitle(item) {
+                let insalesKeys = Object.keys(item).filter(key => key.indexOf('insales') === 0);
+                return insalesKeys.map(key => {
+                    let insalesProducts = item.raw[key];
+                    if (!insalesProducts) {
+                        return false;
+                    }
+
+                    if (!(insalesProducts instanceof Array)) {
+                        insalesProducts = [insalesProducts];
+                    }
+
+                    return insalesProducts.map(insalesProduct => `[${insalesProduct.sku}] ${insalesProduct.title}`).join(', ');
+                }).filter(title => title !== false).join('/') || '';
+            }
         },
         computed: {
             keys() {
@@ -224,7 +275,7 @@
                             }
 
                             compareItem[variant.id] = value instanceof Array
-                                ? value.join(', ')
+                                ? value.map(item => item || 0).join(', ')
                                 : value;
 
                             if (variant.source === source) {
@@ -235,6 +286,8 @@
                         compareItem.todaySum = this.todayStockCount[item.id] || 0;
                         compareItem.allValuesEqual = allValuesEqual;
                         compareItem.allValuesZero = allValuesZero;
+
+                        compareItem.raw = item;
 
                         return compareItem;
                     });
