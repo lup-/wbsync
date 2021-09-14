@@ -91,16 +91,32 @@ export class Wildberries {
         dateFrom = this.normalizeDate(dateFrom, defaultDate);
         dateTo = this.normalizeDate(dateTo, dateFrom.clone().add('1', 'd'));
 
-        let v2params = {
-            date_start: dateFrom.toISOString(),
-            date_end: dateTo.toISOString(),
-            take: API_V2_ORDERS_MAX_CHUNK_SIZE,
-            skip: 0
-        }
+        let loadNextPage = false;
+        let page = 1;
+        let allOrders = [];
 
-        let ordersResponse = await this.callV2Api('orders', v2params);
-        return ordersResponse && ordersResponse.orders
-            ? ordersResponse.orders
+        do {
+            let v2params = {
+                date_start: dateFrom.toISOString(),
+                date_end: dateTo.toISOString(),
+                take: API_V2_ORDERS_MAX_CHUNK_SIZE,
+                skip: allOrders.length,
+            }
+
+            let ordersResponse = await this.callV2Api('orders', v2params);
+            let pageOrders = ordersResponse && ordersResponse.orders
+                ? ordersResponse.orders
+                : null;
+
+            loadNextPage = pageOrders && pageOrders.length > 0;
+            page++;
+            if (pageOrders) {
+                allOrders = allOrders.concat(pageOrders);
+            }
+        } while (loadNextPage)
+
+        return allOrders && allOrders.length > 0
+            ? allOrders
             : null;
     }
 

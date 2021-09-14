@@ -87,5 +87,6 @@ services:
       - MONGO_DB=wbsync
       - DEBUG=${DEBUG}
       - JSON_PATH=${STOCKS_IMPORT_CONTAINER_PATH}
+      - FULL_UPDATE=1
       - REDIS=redis
-    command: npm run jobs
+    command: npm run job

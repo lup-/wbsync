@@ -56,6 +56,14 @@
                                 @click.stop="noopFunction"
                                 @mousedown.stop="noopFunction"
                             ></v-switch>
+                            <date-field v-else-if="item.type === 'date'"
+                                v-model="values[item.id]"
+                                :as-unix="true"
+                                class="my-auto"
+                                @change="updateActive(item.id)"
+                                @click.stop="noopFunction"
+                                @mousedown.stop="noopFunction"
+                            ></date-field>
                             <v-text-field v-else
                                 v-model="values[item.id]"
                                 full-width
@@ -92,10 +100,13 @@
 </template>
 
 <script>
+import moment from "moment";
 import clone from "lodash.clonedeep"
+import DateField from "@/components/Filter/DateField";
 
 export default {
     props: ['fields', 'value', 'label', 'outlined'],
+    components: {DateField},
     data() {
         return {
             console: console,
@@ -133,7 +144,7 @@ export default {
         emitFilter() {
             let filter = this.activeFields.reduce((buildFilter, fieldId) => {
                 let fieldParams = this.fields.find(field => field.id === fieldId);
-                let isNumber = fieldParams.type && fieldParams.type === 'number';
+                let isNumber = fieldParams && fieldParams.type && fieldParams.type === 'number';
 
                 buildFilter[fieldId] = isNumber
                     ? parseInt(this.values[fieldId])
@@ -160,6 +171,9 @@ export default {
             else if (fieldParams.type === 'select') {
                 let valueItem = fieldParams.items.find(item => item.value === value);
                 return valueItem ? valueItem.text : value;
+            }
+            else if (fieldParams.type === 'date') {
+                return moment.unix(value).format('DD.MM.YYYY');
             }
             return value;
         },

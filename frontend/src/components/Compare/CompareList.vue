@@ -65,6 +65,7 @@
                 loading: false,
                 options: {},
                 filter: {},
+                ordersFilter: {},
                 selected: [],
                 upload: {},
                 showUpload: false,
@@ -96,6 +97,7 @@
         },
         async created() {
             this.initFilter();
+            this.initOrdersFilter();
         },
         async mounted () {
             await this.loadKeys();
@@ -113,6 +115,16 @@
                 }
 
                 this.filter = JSON.parse(savedFilter);
+            },
+            initOrdersFilter() {
+                let defaultFilter = {orderType: ['FBS'], source: ['wildberries'], completed: false, canceled: false};
+                let savedFilter = localStorage.getItem('savedFilter');
+                if (!savedFilter) {
+                    this.filter = defaultFilter;
+                    return;
+                }
+
+                this.ordersFilter = JSON.parse(savedFilter);
             },
             saveFilter() {
                 localStorage.setItem('savedCompareFilter', JSON.stringify(this.filter));
@@ -158,7 +170,15 @@
                 let limit = -1;
                 let offset = 0;
                 let sort = {updated: -1};
-                let filter = {updated: {$gte: today}, source: this.filter.source};
+                let filter = this.filter.useOrderFilter
+                    ? this.ordersFilter
+                    : {};
+
+                let ordersDateFrom = this.filter.ordersDateFrom
+                    ? this.filter.ordersDateFrom
+                    : today;
+
+                filter.updated = {$gte: ordersDateFrom}
 
                 await this.$store.dispatch('order/loadItems', {filter, sort, limit, offset});
                 this.loading = false;
@@ -316,12 +336,12 @@
                 return [
                     {text: 'Искать совпадения по', id: 'matchField', type: 'select', single: true, items: this.matchFields},
                     {text: 'Сравнивать по', id: 'compareField', type: 'select', single: true, items: this.compareFields},
-                    {text: 'Канал для кол-ва в заказах', id: 'source', type: 'select', items: this.sourceTypes, attrs: {multiple: true}},
                     {text: 'Артикул', id: 'sku'},
                     {text: 'Штрихкод', id: 'barcode'},
                     {text: 'Только в нескольких источниках', id: 'onlyMatched', type: 'flag'},
                     {text: 'Только различия', id: 'onlyUnequal', type: 'flag'},
-                    {text: 'Есть в заказах сегодня', id: 'onlyToday', type: 'flag'},
+                    {text: 'Есть в заказах с даты', id: 'ordersDateFrom', type: 'date'},
+                    {text: 'Использовать фильтр страницы заказов', id: 'useOrderFilter', type: 'flag'},
                 ];
             },
             compareField() {
@@ -343,9 +363,7 @@
                     : false;
             },
             onlyToday() {
-                return typeof (this.filter.onlyToday) === 'boolean'
-                    ? this.filter.onlyToday
-                    : false;
+                return this.filter.ordersDateFrom > 0;
             },
             todayStockCount() {
                 let stockCount = {};

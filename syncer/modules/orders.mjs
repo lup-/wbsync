@@ -2,6 +2,7 @@ import moment from "moment";
 import createDebug from "debug";
 import {Wildberries} from "./wildberries/index.mjs";
 import {InSales} from "./insales/index.mjs";
+import {Ozon} from "./ozon/index.mjs";
 import {getDb, syncCollectionItems} from "./database.mjs";
 import {getUniqueCodeByProps} from "./utils.mjs";
 import clone from "lodash.clonedeep";
@@ -87,6 +88,25 @@ function makeDbProductsFromWildberriesV2(wbv2Order) {
 function makeDbProductsFromInsales(insalesOrder, key) {
     let insales = new InSales();
     return insalesOrder.order_lines.map(orderLine => insales.makeDbProductFromOrderLine(orderLine, key))
+}
+function makeDbProductsFromOzon(ozonOrder) {
+    return ozonOrder.products.map(product => {
+        return {
+            id: product.sku,
+            sku: product.offer_id,
+            color: null,
+            size: {
+                ru: null,
+                de: null
+            },
+            variant: null,
+            title: product.name,
+            brand: null,
+            barcode: null,
+            quantity: product.quantity,
+            price: Math.floor(parseFloat(product.price) * 100),
+        }
+    });
 }
 
 function makeDbOrderFromWildberriesV1(wbv1Order, key) {
@@ -191,6 +211,30 @@ function makeDbOrderFromInsales(insalesOrder, key) {
         products: makeDbProductsFromInsales(insalesOrder, key),
 
         raw: insalesOrder
+    }
+}
+function makeDbOrderFromOzon(ozonOrder, key) {
+    let ozon = new Ozon();
+    let products = makeDbProductsFromOzon(ozonOrder, key);
+    let totalPrice = products.reduce((price, product) => price + product.price, 0);
+
+    return {
+        source: 'ozon',
+        sourceType: null,
+        orderType: 'FBS',
+        keyId: key.id,
+
+        id: ozonOrder.order_number,
+        updated: moment(ozonOrder.in_process_at).unix(),
+        created: moment(ozonOrder.in_process_at).unix(),
+        canceled: ozonOrder.status === 'cancelled' ? moment().unix() : false,
+        status: ozonOrder.status,
+        statusText: ozon.statusText(ozonOrder.status),
+        price: totalPrice,
+
+        products: makeDbProductsFromOzon(ozonOrder, key),
+
+        raw: ozonOrder
     }
 }
 
@@ -414,6 +458,21 @@ async function syncInsalesOrders(key, db) {
     let preparedOrders = orders.filter(order => Boolean(order)).map(order => makeDbOrderFromInsales(order, key));
     return syncCollectionItems(db, preparedOrders, 'orders', 'id', 'updated');
 }
+async function syncOzonOrders(key, db) {
+    let ozon = new Ozon(key.client_id, key.api_key);
+    let source = 'ozon';
+
+    let dateFrom = await getDateFrom(source, db);
+    let orders = await ozon.fetchOrders(dateFrom)
+    let preparedOrders = orders.filter(order => Boolean(order)).map(order => makeDbOrderFromOzon(order, key));
+
+    let beforeUpdate = (updatedOrder, savedOrder) => {
+        updatedOrder.updated = moment().unix();
+        return updatedOrder;
+    }
+
+    return syncCollectionItems(db, preparedOrders, 'orders', 'id', 'status', beforeUpdate);
+}
 
 async function updateWbOrdersInDb(keys, db) {
     for (let key of keys) {
@@ -427,6 +486,12 @@ async function updateInsalesOrdersInDb(keys, db) {
         await syncInsalesOrders(key, db);
     }
 }
+async function updateOzonOrdersInDb(keys, db) {
+    for (let key of keys) {
+        debug('Syncing %s', key.title);
+        await syncOzonOrders(key, db);
+    }
+}
 
 async function syncAllOrders(debug) {
     debug('Starting orders sync');
@@ -435,6 +500,7 @@ async function syncAllOrders(debug) {
     let keys = await db.collection('keys').find({deleted: {$in: [null, false]}}).toArray();
     let wbKeys = keys.filter(key => key.type === 'wildberries');
     let insalesKeys = keys.filter(key => key.type === 'insales');
+    let ozonKeys = keys.filter(key => key.type === 'ozon');
 
     if (wbKeys.length > 0) {
         await updateWbOrdersInDb(wbKeys, db);
@@ -442,6 +508,10 @@ async function syncAllOrders(debug) {
 
     if (insalesKeys.length > 0) {
         await updateInsalesOrdersInDb(insalesKeys, db);
+    }
+
+    if (ozonKeys.length > 0) {
+        await updateOzonOrdersInDb(ozonKeys, db);
     }
 
     await db.collection('log').insertOne({

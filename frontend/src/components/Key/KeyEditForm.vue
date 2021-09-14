@@ -12,6 +12,10 @@
                     <v-text-field v-model="item.insales_api_id" label="Идентификатор"></v-text-field>
                     <v-text-field v-model="item.insales_api_password" label="Пароль"></v-text-field>
                 </div>
+                <div v-if="item.type === 'ozon'">
+                    <v-text-field v-model="item.client_id" label="Идентификатор клиента"></v-text-field>
+                    <v-text-field v-model="item.api_key" label="API-ключ"></v-text-field>
+                </div>
             </v-col>
         </v-row>
     </v-form>
@@ -25,7 +29,8 @@ export default {
             item: this.value || {},
             types: [
                 {text: 'Wildberries', value: 'wildberries'},
-                {text: 'InSales', value: 'insales'}
+                {text: 'InSales', value: 'insales'},
+                {text: 'Ozon', value: 'ozon'},
             ],
             defaultItem: {}
         }
