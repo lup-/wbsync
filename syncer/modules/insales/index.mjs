@@ -161,14 +161,14 @@ export class InSales {
             sourceType: 'variant',
             keyId: key.id,
 
-            id: variant.product_id,
+            id: variant.id,
             sku: variant.sku,
             color: colorOption ? colorOption.title : null,
             size: {
                 ru: ruSizeOption ? ruSizeOption.title : null,
                 de: deSizeOption ? deSizeOption.title : null
             },
-            variant: variant.id,
+            product: variant.product_id,
             title: variant.title,
             brand: null,
             barcode: variant.barcode,
@@ -177,7 +177,8 @@ export class InSales {
         }
     }
 
-    findProductByFunction(matchFunction, insalesProducts) {
+    findProductsByFunction(matchFunction, insalesProducts) {
+        let matchingProducts = [];
         for (let insalesProduct of insalesProducts) {
             let matchingVariants = insalesProduct.variants.filter(matchFunction);
 
@@ -186,22 +187,23 @@ export class InSales {
                 let matchingProduct = clone(insalesProduct);
                 delete matchingProduct.variants;
                 matchingProduct.variant = matchingVariants[0];
+                matchingProduct.matchingVariants = matchingVariants;
 
-                return matchingProduct;
+                matchingProducts.push(matchingProduct);
             }
         }
 
-        return null;
+        return matchingProducts;
     }
 
-    findProductByVariantField(fieldName, fieldValue, insalesProducts, fullMatch = true) {
+    findProductsByVariantField(fieldName, fieldValue, insalesProducts, fullMatch = true) {
         let matchFunction = variant => {
             return fullMatch
                 ? variant[fieldName] === fieldValue
                 : variant[fieldName].indexOf(fieldValue) === 0;
         }
 
-        return this.findProductByFunction(matchFunction, insalesProducts)
+        return this.findProductsByFunction(matchFunction, insalesProducts)
     }
 
     matchProducts(dbProducts, insalesProducts, options) {
@@ -214,8 +216,8 @@ export class InSales {
         let missingInInsales = [];
 
         for (let dbProduct of dbProducts) {
-            let matchedProduct = this.findProductByVariantField('barcode', dbProduct.barcode, insalesProducts);
-            if (!matchedProduct) {
+            let matchedProducts = this.findProductsByVariantField('barcode', dbProduct.barcode, insalesProducts);
+            if (!matchedProducts) {
                 let skuMatchFunction = variant => {
                     if (variant.sku === '' || dbProduct.sku === '') {
                         return false;
@@ -240,15 +242,19 @@ export class InSales {
                     return hasMatchingSizes;
                 }
 
-                matchedProduct = this.findProductByFunction(skuMatchFunction, insalesProducts);
+                matchedProducts = this.findProductsByFunction(skuMatchFunction, insalesProducts);
             }
 
-            if (matchedProduct) {
-                matched.push({
-                    db: dbProduct,
-                    product: matchedProduct,
-                    variant: matchedProduct.variant,
-                });
+            if (matchedProducts) {
+                for (let product of matchedProducts) {
+                    for (let variant of product.matchingVariants) {
+                        matched.push({
+                            db: dbProduct,
+                            product,
+                            variant,
+                        });
+                    }
+                }
             }
             else {
                 missingInInsales.push(dbProduct);

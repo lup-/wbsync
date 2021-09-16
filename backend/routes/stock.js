@@ -201,7 +201,7 @@ module.exports = {
         pipeline.push({ $count: 'totalDocuments' });
 
         let countItem = await db.collection(COLLECTION_NAME).aggregate(pipeline).toArray();
-        let totalCount = countItem[0].totalDocuments;
+        let totalCount = countItem && countItem[0] ? countItem[0].totalDocuments : 0;
 
         let response = {};
         response[ITEMS_NAME] = compareItems;
