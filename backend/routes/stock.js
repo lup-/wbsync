@@ -105,35 +105,42 @@ module.exports = {
         let compareField = ctx.request.body.compareField || 'quantity';
 
         let inputOrderFilter = {};
+        let hasOrdersFilter = false;
         if (inputFilter.orders) {
+            hasOrdersFilter = true;
             inputOrderFilter = clone(inputFilter.orders);
             delete inputFilter.orders;
         }
 
         if (inputFilter.ordersDate) {
+            hasOrdersFilter = true;
             inputOrderFilter['updated'] = {$gte: inputFilter.ordersDate};
             delete inputFilter.ordersDate;
         }
 
-        let orderFilter = getOrderFilter(inputOrderFilter);
-
         let db = await getDb();
-        let orders = await db.collection('orders').find(orderFilter).toArray();
 
         let orderStockCount = {};
-        for (let order of orders) {
-            for (let product of order.products) {
-                if (product.barcode) {
-                    let id = product[matchField];
-                    if (typeof (orderStockCount[id]) === 'undefined') {
-                        orderStockCount[id] = product[compareField];
-                    }
-                    else {
-                        orderStockCount[id] += product[compareField];
+        if (hasOrdersFilter) {
+            let orderFilter = getOrderFilter(inputOrderFilter);
+
+            let orders = await db.collection('orders').find(orderFilter).toArray();
+
+            for (let order of orders) {
+                for (let product of order.products) {
+                    if (product.barcode) {
+                        let id = product[matchField];
+                        if (typeof (orderStockCount[id]) === 'undefined') {
+                            orderStockCount[id] = product[compareField];
+                        }
+                        else {
+                            orderStockCount[id] += product[compareField];
+                        }
                     }
                 }
             }
         }
+
         let productInOrdersBarcodes = Object.keys(orderStockCount);
         let barcodeFilter = productInOrdersBarcodes.length > 0
             ? {barcode: {$in: productInOrdersBarcodes}}
@@ -170,7 +177,11 @@ module.exports = {
             }
         }
 
+        let notEmptyMatchFieldFilter = {};
+        notEmptyMatchFieldFilter[matchField] = {$nin: [null, false]};
+
         let pipeline = [
+            { $match: notEmptyMatchFieldFilter },
             { $match: filter },
             { $match: barcodeFilter },
             { $group: {"_id": `$${matchField}`, "stocks": {$addToSet: "$$ROOT"}} },
@@ -250,7 +261,7 @@ module.exports = {
                 compareItem[keySource.id] = stock || null;
                 let stockId = stock[matchField];
                 if (orderStockCount[stockId]) {
-                    compareItem.todaySum = orderStockCount[stockId] || 0;
+                    compareItem.todaySum = orderStockCount[stockId] || '';
                 }
             }
 

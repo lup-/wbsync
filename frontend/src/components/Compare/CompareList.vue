@@ -169,14 +169,16 @@
                     filter.sku = this.filter.sku;
                 }
 
-                filter.orders = this.filter.useOrderFilter
-                    ? this.ordersFilter
-                    : {};
+                if (this.filter.useOrderFilter || this.filter.ordersDateFrom) {
+                    filter.orders = this.filter.useOrderFilter
+                        ? this.ordersFilter
+                        : {};
 
-                let today = moment().startOf('d').unix();
-                filter.ordersDate = this.filter.ordersDateFrom
-                    ? this.filter.ordersDateFrom
-                    : today;
+                    let today = moment().startOf('d').unix();
+                    filter.ordersDate = this.filter.ordersDateFrom
+                        ? this.filter.ordersDateFrom
+                        : today;
+                }
 
                 let params = {
                     matchField: this.matchField,
@@ -233,7 +235,7 @@
                 let baseHeaders = [
                     {text: matchBySku ? 'Артикул' : 'Штрих-код', value: matchBySku ? 'sku' : 'barcode'},
                     {text: 'Название', value: 'title'},
-                    {text: 'Сегодня заказано', value: 'todaySum', sortable: false}
+                    {text: 'Сколько в заказах', value: 'todaySum', sortable: false}
                 ];
 
                 let variants = this.$store.state.stock.compareVariants || [];
@@ -306,7 +308,7 @@
                             }
                         }
 
-                        compareItem.todaySum = item.todaySum || 0;
+                        compareItem.todaySum = item.todaySum !== '' ? item.todaySum : '';
                         compareItem.allValuesEqual = allValuesEqual;
                         compareItem.allValuesZero = allValuesZero;
 
