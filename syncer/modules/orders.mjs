@@ -355,6 +355,7 @@ function joinOrderFields(order1, order2) {
     joinedOrder.orderType = getUniqueValues('orderType', order1, order2);
     joinedOrder.raw = getUniqueValues('raw', order1, order2);
     joinedOrder.price = order1.price + order2.price;
+    joinedOrder.quantity = order1.quantity + order2.quantity;
 
     if (order1.sourceType === 'v1' && order2.sourceType === 'v2') {
         joinedOrder.price = order2.price;

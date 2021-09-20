@@ -194,6 +194,7 @@ export class Wildberries {
             id: wbv2Order.barcode,
             barcode: wbv2Order.barcode,
             price: wbv2Order.totalPrice,
+            quantity: 1,
         });
         product.setRaw('v2order', wbv2Order);
 

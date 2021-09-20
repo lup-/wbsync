@@ -58,6 +58,7 @@
                   {text: 'Артикул', value: 'sku'},
                   {text: 'Штрих-код', value: 'barcode'},
                   {text: 'Кол-во', value: 'quantity'},
+                  {text: 'Цена', value: 'price'},
                   //{text: 'Действия', value: 'actions', sortable: false, width: '20%'},
                 ],
             }
