@@ -4,6 +4,8 @@ import {getUniqueCodeByProps} from "./utils.mjs";
 import clone from "lodash.clonedeep";
 import moment from "moment";
 import {InSales} from "./insales/index.mjs";
+import {Ozon} from "./ozon/index.mjs";
+import {Wildberries} from "./wildberries/index.mjs";
 
 function getId(product) {
     return getUniqueCodeByProps(product);
@@ -53,6 +55,53 @@ function prepareProducts(products) {
     });
 }
 
+async function downloadStocksForKey(db, key, debug) {
+    if (key.type === 'insales') {
+        debug('Syncing %s', key.title);
+        let insales = new InSales(key.insales_api_id, key.insales_api_password);
+        let insalesStocks = await insales.fetchStocksForDb(key);
+        return await syncCollectionItems(
+            db,
+            insalesStocks,
+            'stock',
+            'id',
+            'quantity',
+            null,
+            {source: 'insales', keyId: key.id}
+        );
+    }
+
+    if (key.type === 'wildberries') {
+        debug('Syncing %s', key.title);
+        let wb = new Wildberries(key.wb_64bit, key.wb_new);
+        let wbStocks = await wb.fetchStocksForDb(key);
+        return await syncCollectionItems(
+            db,
+            wbStocks,
+            'stock',
+            'id',
+            'quantity',
+            null,
+            {source: 'wildberries', keyId: key.id}
+        );
+    }
+
+    if (key.type === 'ozon') {
+        debug('Syncing %s', key.title);
+        let ozon = new Ozon(key.client_id, key.api_key);
+        let ozonStocks = await ozon.fetchStocksForDb(key);
+        return await syncCollectionItems(
+            db,
+            ozonStocks,
+            'stock',
+            'id',
+            'quantity',
+            null,
+            {source: 'ozon', keyId: key.id}
+        );
+    }
+}
+
 async function downloadAllStocks(debug, jsonPath) {
     debug('Starting stocks sync');
     debug('Reading file %s', jsonPath);
@@ -72,26 +121,11 @@ async function downloadAllStocks(debug, jsonPath) {
         {source: '1c'}
     );
 
-    debug('Sync Insales stocks with db...', products.length);
+    debug('Sync stocks with db...', products.length);
     let keys = await db.collection('keys').find({deleted: {$in: [null, false]}}).toArray();
-    let insalesKeys = keys.filter(key => key.type === 'insales');
-    if (insalesKeys.length > 0) {
-        let dbStocks = await db.collection('stock').find({deleted: {$in: [null, false]}}).toArray();
-        debug('Sync Insales stocks count: %s', dbStocks.length);
-        for (let key of insalesKeys) {
-            debug('Syncing %s', key.title);
-            let insales = new InSales(key.insales_api_id, key.insales_api_password);
-            let insalesStocks = await insales.getMatchedStocks(dbStocks, key);
-            await syncCollectionItems(
-                db,
-                insalesStocks,
-                'stock',
-                'id',
-                'quantity',
-                null,
-                {source: 'insales', keyId: key.id}
-            );
-        }
+
+    for (let key of keys) {
+        await downloadStocksForKey(db, key, debug);
     }
 
     await db.collection('log').insertOne({
@@ -101,29 +135,46 @@ async function downloadAllStocks(debug, jsonPath) {
     });
 }
 
-async function uploadStocks(stockIds, idField, from, to) {
+async function uploadStocks(stockIds, idField, from, to, debug) {
     stockIds = stockIds.filter(id => Boolean(id));
     let {source: fromSource, keyId: fromKeyId} = from;
     let {source: toSource, keyId: toKeyId} = to;
 
     let db = await getDb();
     let key = await db.collection('keys').findOne({id: toKeyId, deleted: {$in: [null, false]}});
-    let stocksQuery = {
+    let fromStocksQuery = {
         source: fromSource,
         keyId: fromKeyId,
         deleted: {$in: [null, false]}
     };
-    stocksQuery[idField] = {$in: stockIds};
-    let stocks = await db.collection('stock').find(stocksQuery).toArray();
+    fromStocksQuery[idField] = {$in: stockIds};
+
+    let toStocksQuery = {
+        source: toSource,
+        keyId: toKeyId,
+        deleted: {$in: [null, false]}
+    }
+
+    let fromStocks = await db.collection('stock').find(fromStocksQuery).toArray();
+    let toStocks = await db.collection('stock').find(toStocksQuery).toArray();
 
     let provider = null;
     if (toSource === 'insales') {
         provider = new InSales(key.insales_api_id, key.insales_api_password);
     }
 
+    if (toSource === 'wildberries') {
+        provider = new Wildberries(key.wb_64bit, key.wb_new);
+    }
+
+    if (toSource === 'ozon') {
+        provider = new Ozon(key.client_id, key.api_key);
+    }
+
     let errorIds = null;
     if (provider) {
-        errorIds = await provider.syncLeftovers(stocks);
+        errorIds = await provider.syncLeftovers(fromStocks, toStocks);
+        await downloadStocksForKey(db, key, debug);
     }
 
     await db.collection('log').insertOne({

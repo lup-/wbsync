@@ -59,4 +59,31 @@ function splitIntoChunks(array, chunkSize) {
     return chunks;
 }
 
-export {normalizeDate, getUniqueCodeByProps, splitIntoChunks}
+function matchByBarcode(sourceProduct, targetProducts) {
+    let srcBarcode = sourceProduct.barcode;
+    if (!srcBarcode) {
+        return [];
+    }
+
+    return targetProducts.filter(targetProduct => targetProduct.barcode === srcBarcode);
+}
+
+function matchBySku(sourceProduct, targetProducts) {
+    let srcSku = sourceProduct.sku;
+    if (!srcSku) {
+        return [];
+    }
+
+    return targetProducts.filter(targetProduct => targetProduct.sku === srcSku);
+}
+
+function matchByBarcodeOrSku(sourceProduct, targetProducts) {
+    let matchedByBarcode = matchByBarcode(sourceProduct, targetProducts);
+    if (matchedByBarcode && matchedByBarcode.length > 0) {
+        return matchedByBarcode;
+    }
+
+    return matchBySku(sourceProduct, targetProducts);
+}
+
+export {normalizeDate, getUniqueCodeByProps, splitIntoChunks, matchByBarcode, matchBySku, matchByBarcodeOrSku}

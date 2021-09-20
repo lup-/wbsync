@@ -1,12 +1,31 @@
 const {getDb} = require('../modules/Database');
+const {getOrderFilter} = require('../modules/Orders');
 const shortid = require('shortid');
 const moment = require('moment');
+const {clone} = require("mongodb/lib/core/topologies/shared");
 
 const COLLECTION_NAME = 'stock';
 const ITEM_NAME = 'stock';
 const ITEMS_NAME = 'stock';
 const SORT_A_TO_BEGIN = -1;
 const SORT_B_TO_BEGIN = 1;
+
+function todayStockCount() {
+    let stockCount = {};
+    for (let order of this.todayOrders) {
+        for (let product of order.products) {
+            let id = product[this.matchField];
+            if (typeof (stockCount[id]) === 'undefined') {
+                stockCount[id] = product[this.compareField];
+            }
+            else {
+                stockCount[id] += product[this.compareField];
+            }
+        }
+    }
+
+    return stockCount;
+}
 
 module.exports = {
     async list(ctx) {
@@ -83,6 +102,42 @@ module.exports = {
         let offset = ctx.request.body.offset ? parseInt(ctx.request.body.offset) : 0;
         let onlyMatched = ctx.request.body.onlyMatched ? Boolean(ctx.request.body.onlyMatched) : true;
         let matchField = ctx.request.body.matchField || 'barcode';
+        let compareField = ctx.request.body.compareField || 'quantity';
+
+        let inputOrderFilter = {};
+        if (inputFilter.orders) {
+            inputOrderFilter = clone(inputFilter.orders);
+            delete inputFilter.orders;
+        }
+
+        if (inputFilter.ordersDate) {
+            inputOrderFilter['updated'] = {$gte: inputFilter.ordersDate};
+            delete inputFilter.ordersDate;
+        }
+
+        let orderFilter = getOrderFilter(inputOrderFilter);
+
+        let db = await getDb();
+        let orders = await db.collection('orders').find(orderFilter).toArray();
+
+        let orderStockCount = {};
+        for (let order of orders) {
+            for (let product of order.products) {
+                if (product.barcode) {
+                    let id = product[matchField];
+                    if (typeof (orderStockCount[id]) === 'undefined') {
+                        orderStockCount[id] = product[compareField];
+                    }
+                    else {
+                        orderStockCount[id] += product[compareField];
+                    }
+                }
+            }
+        }
+        let productInOrdersBarcodes = Object.keys(orderStockCount);
+        let barcodeFilter = productInOrdersBarcodes.length > 0
+            ? {barcode: {$in: productInOrdersBarcodes}}
+            : {};
 
         let defaultFilter = {
             'deleted': {$in: [null, false]}
@@ -117,6 +172,7 @@ module.exports = {
 
         let pipeline = [
             { $match: filter },
+            { $match: barcodeFilter },
             { $group: {"_id": `$${matchField}`, "stocks": {$addToSet: "$$ROOT"}} },
         ];
 
@@ -128,7 +184,6 @@ module.exports = {
             pipeline.push({ $sort: sort });
         }
 
-        let db = await getDb();
         let cursor = db.collection(COLLECTION_NAME)
             .aggregate(pipeline)
             .skip(offset);
@@ -172,12 +227,13 @@ module.exports = {
                 return SORT_B_TO_BEGIN;
             }
 
-            return a.key.localeCompare(b.key);
+            return a && a.key && b && b.key ? a.key.localeCompare(b.key) : 0;
         });
 
         let compareItems = items.map(item => {
             let compareItem = {id: item._id};
             compareItem[matchField] = item._id;
+            compareItem.todaySum = 0;
             for (let keySource of uniqueKeySources) {
                 let stocks = item.stocks.filter(stock => {
                     let hasKey = keySource.keyId !== null;
@@ -192,6 +248,10 @@ module.exports = {
                 let stock = stocks.length === 1 ? stocks[0] : stocks;
 
                 compareItem[keySource.id] = stock || null;
+                let stockId = stock[matchField];
+                if (orderStockCount[stockId]) {
+                    compareItem.todaySum = orderStockCount[stockId] || 0;
+                }
             }
 
             return compareItem;

@@ -85,7 +85,6 @@ export default {
         },
         toSources() {
             return this.keys
-                .filter(key => key.type === 'insales')
                 .map(key => {
                     return {
                         text: key.title,

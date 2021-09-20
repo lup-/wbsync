@@ -32,11 +32,23 @@ import moment from "moment";
 export default {
     props: ['value', 'asUnix'],
     data() {
+        let defaultDate = moment().subtract(1, 'd');
+        let parsedDate = this.value
+            ? moment(this.value, 'DD.MM.YYYY')
+            : defaultDate;
+
+        if (!(parsedDate && parsedDate.isValid())) {
+            parsedDate = defaultDate;
+        }
+
         return {
             showMenuDate: false,
-            date: moment().subtract(1, 'd').format('YYYY-MM-DD'),
-            formatted: moment().subtract(1, 'd').format('DD.MM.YYYY'),
+            date: parsedDate.format('YYYY-MM-DD'),
+            formatted: parsedDate.format('DD.MM.YYYY'),
         }
+    },
+    mounted() {
+        this.updateDate(true);
     },
     watch: {
         date () {
@@ -57,7 +69,7 @@ export default {
             const [year, month, day] = date.split('-')
             return `${day}.${month}.${year}`
         },
-        updateDate() {
+        updateDate(silent = false) {
             let date = this.date
                 ? moment( this.date ).startOf('d')
                 : moment().startOf('d');
@@ -67,7 +79,13 @@ export default {
                 : date.toISOString();
 
             this.$emit('input', emitDate);
-            this.$emit('change', emitDate);
+
+            if (silent) {
+                this.$emit('silent', emitDate);
+            }
+            else {
+                this.$emit('change', emitDate);
+            }
         },
     }
 }

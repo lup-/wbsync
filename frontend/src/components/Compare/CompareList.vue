@@ -22,7 +22,7 @@
                     </template>
                     <template v-slot:item.title="{item}">
                         <div>{{item.title}}</div>
-                        <small class="text--disabled" v-if="getInsalesTitle(item)">{{getInsalesTitle(item)}}</small>
+                        <small class="text--disabled" v-if="getInsalesTitle(item)" v-html="getInsalesTitle(item)"></small>
                     </template>
                     <template v-slot:footer.prepend>
                         <upload-stocks-dialog
@@ -32,7 +32,11 @@
                             @ok="uploadStocks"
                         >
                             <template v-slot:activator="{ on, attrs }">
-                                <v-btn color="primary" :disabled="selected && selected.length === 0" v-bind="attrs" v-on="on">Отправить остатки</v-btn>
+                                <v-btn color="primary"
+                                    :disabled="selected && selected.length === 0"
+                                    :loading="uploadJob !== false"
+                                    v-bind="attrs" v-on="on"
+                                >Отправить остатки</v-btn>
                             </template>
                         </upload-stocks-dialog>
                     </template>
@@ -69,6 +73,7 @@
                 selected: [],
                 upload: {},
                 showUpload: false,
+                lastBarcodes: [],
 
                 matchFields,
                 compareFields,
@@ -79,12 +84,11 @@
             filter: {
                 deep: true,
                 async handler() {
-                    if (this.filter.onlyUnequal || this.filter.onlyToday) {
+                    if (this.filter.onlyUnequal) {
                         this.options.itemsPerPage = -1;
                         this.options.page = 1;
                     }
 
-                    await this.loadTodayOrders();
                     await this.loadItems();
                 }
             },
@@ -92,6 +96,16 @@
                 deep: true,
                 handler() {
                     this.loadItems();
+                }
+            },
+            async uploadJob() {
+                if (this.uploadJob === false) {
+                    await this.loadItems();
+                }
+            },
+            async downloadJob() {
+                if (this.downloadJob === false) {
+                    await this.loadItems();
                 }
             }
         },
@@ -102,7 +116,6 @@
         async mounted () {
             await this.loadKeys();
             await this.loadOrderEnums();
-            await this.loadTodayOrders();
             return this.loadItems();
         },
         methods: {
@@ -156,31 +169,21 @@
                     filter.sku = this.filter.sku;
                 }
 
+                filter.orders = this.filter.useOrderFilter
+                    ? this.ordersFilter
+                    : {};
+
+                let today = moment().startOf('d').unix();
+                filter.ordersDate = this.filter.ordersDateFrom
+                    ? this.filter.ordersDateFrom
+                    : today;
+
                 let params = {
                     matchField: this.matchField,
                     onlyMatched: Boolean(this.filter.onlyMatched)
                 };
 
                 await this.$store.dispatch('stock/loadCompareItems', {filter, sort, limit, offset, params});
-                this.loading = false;
-            },
-            async loadTodayOrders() {
-                this.loading = true;
-                let today = moment().startOf('d').unix();
-                let limit = -1;
-                let offset = 0;
-                let sort = {updated: -1};
-                let filter = this.filter.useOrderFilter
-                    ? this.ordersFilter
-                    : {};
-
-                let ordersDateFrom = this.filter.ordersDateFrom
-                    ? this.filter.ordersDateFrom
-                    : today;
-
-                filter.updated = {$gte: ordersDateFrom}
-
-                await this.$store.dispatch('order/loadItems', {filter, sort, limit, offset});
                 this.loading = false;
             },
             async loadOrderEnums() {
@@ -213,7 +216,7 @@
                         insalesProducts = [insalesProducts];
                     }
 
-                    return insalesProducts.map(insalesProduct => `[${insalesProduct.sku}] ${insalesProduct.title}`).join(', ');
+                    return insalesProducts.map(insalesProduct => `[${insalesProduct.sku}] ${insalesProduct.title}`).join('<br>');
                 }).filter(title => title !== false).join('/') || '';
             }
         },
@@ -303,7 +306,7 @@
                             }
                         }
 
-                        compareItem.todaySum = this.todayStockCount[item.id] || 0;
+                        compareItem.todaySum = item.todaySum || 0;
                         compareItem.allValuesEqual = allValuesEqual;
                         compareItem.allValuesZero = allValuesZero;
 
@@ -314,10 +317,6 @@
 
                 if (this.onlyUnequal) {
                     compareItems = compareItems.filter(item => item.allValuesEqual === false && item.allValuesZero === false);
-                }
-
-                if (this.onlyToday) {
-                    compareItems = compareItems.filter(item => item.todaySum > 0);
                 }
 
                 return compareItems;
@@ -380,6 +379,25 @@
                 }
 
                 return stockCount;
+            },
+            todayBarcodes() {
+                return Object.keys(this.todayStockCount);
+            },
+            uploadJobs() {
+                return this.$store.getters["job/uploadJobs"];
+            },
+            uploadJob() {
+                return this.uploadJobs && this.uploadJobs.length > 0
+                    ? this.uploadJobs[0]
+                    : false
+            },
+            downloadJobs() {
+                return this.$store.getters["job/downloadJobs"];
+            },
+            downloadJob() {
+                return this.downloadJobs && this.downloadJobs.length > 0
+                    ? this.downloadJobs[0]
+                    : false
             }
         }
     }

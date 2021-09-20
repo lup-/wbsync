@@ -61,6 +61,7 @@
                                 :as-unix="true"
                                 class="my-auto"
                                 @change="updateActive(item.id)"
+                                @silent="updateActive(item.id, true)"
                                 @click.stop="noopFunction"
                                 @mousedown.stop="noopFunction"
                             ></date-field>
@@ -186,7 +187,7 @@ export default {
         selectField(fieldId) {
             this.activeFields.push(fieldId);
         },
-        updateActive(fieldId) {
+        updateActive(fieldId, silent = false) {
             let fieldProps = this.fields.find(field => field.id === fieldId);
             let value = this.values[fieldId];
             let oldActive = this.activeFields.indexOf(fieldId) !== -1;
@@ -195,7 +196,7 @@ export default {
                 : Boolean(value);
             let isBooleanField = fieldProps && fieldProps.type === 'dateFlag';
 
-            if (oldActive !== newActive) {
+            if (oldActive !== newActive && !silent) {
                 if (newActive === true) {
                     this.selectField(fieldId);
                 }

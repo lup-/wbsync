@@ -1,12 +1,15 @@
 import axios from "axios";
 import createDebug from "debug";
-import {normalizeDate} from "../utils.mjs";
+import {normalizeDate, matchByBarcodeOrSku, splitIntoChunks} from "../utils.mjs";
+import {Product} from "../dbProduct.mjs";
 import moment from "moment";
 
 const API_BASE='https://api-seller.ozon.ru/';
 const debug = createDebug('ozon');
 
-const API_MAX_CHUNK_SIZE = 50;
+const API_MAX_ORDERS_CHUNK_SIZE = 50;
+const API_MAX_STOCKS_CHUNK_SIZE = 100;
+const API_MAX_INFO_CHUNK_SIZE = 1000;
 
 export class Ozon {
     constructor(clientId = null, apiKey = null) {
@@ -86,6 +89,92 @@ export class Ozon {
         return null;
     }
 
+    makeDbProduct(ozonProduct) {
+        let product = new Product({
+            id: ozonProduct.sku,
+            sku: ozonProduct.offer_id,
+            title: ozonProduct.name,
+            quantity: ozonProduct.quantity,
+            price: Math.floor(parseFloat(ozonProduct.price) * 100),
+        });
+
+        return product.getJson();
+    }
+
+    makeDbProductFromStock(ozonProduct, key) {
+        let fbsStocks = ozonProduct.stocks.find(stock => stock.type === 'fbs');
+        let product = new Product({
+            source: 'ozon',
+            keyId: key.id,
+
+            id: ozonProduct.product_id,
+            sku: ozonProduct.offer_id,
+            quantity: fbsStocks ? fbsStocks.present : 0,
+        });
+        product.setRaw('stock', ozonProduct);
+
+        return product.getJson();
+    }
+
+    addProductPropsToStockProps(stock, ozonProduct) {
+        let product = new Product(stock);
+        product.setFields({
+            title: ozonProduct.name,
+            barcode: ozonProduct.barcode,
+            price: Math.floor( parseFloat(ozonProduct.price) * 100 ),
+        });
+        product.setRaw('product', ozonProduct);
+
+        return product.getJson();
+    }
+
+    async fetchProducts() {
+        let loadNextPage = false;
+        let page = 1;
+        let allProducts = [];
+        do {
+            let data = await this.callPostMethod('v2/product/info/stocks', {
+                page_size: API_MAX_INFO_CHUNK_SIZE,
+                page: page-1
+            });
+
+            if (data && data.result) {
+                page++;
+                allProducts = allProducts.concat(data.result.items);
+                loadNextPage = allProducts.length < data.result.total;
+            }
+            else {
+                loadNextPage = false;
+            }
+
+        } while (loadNextPage);
+
+        return allProducts;
+    }
+
+    async fetchStocksForDb(key) {
+        let ozonProducts = await this.fetchProducts();
+        let ozonStocks = ozonProducts.map(product => this.makeDbProductFromStock(product, key));
+
+        let products = [];
+        for (let stock of ozonStocks) {
+            try {
+                let data = await this.callPostMethod('v2/product/info', {
+                    product_id: stock.id
+                });
+
+                if (data && data.result) {
+                    products.push(this.addProductPropsToStockProps(stock, data.result));
+                }
+            }
+            catch (e) {
+                debug(e);
+            }
+        }
+
+        return products;
+    }
+
     async fetchOrders(dateFrom = null, dateTo = null) {
         let defaultDate = moment().startOf('d');
         dateFrom = normalizeDate(dateFrom, defaultDate);
@@ -106,7 +195,7 @@ export class Ozon {
                         to: dateTo.toISOString(),
                         status,
                     },
-                    limit: API_MAX_CHUNK_SIZE,
+                    limit: API_MAX_ORDERS_CHUNK_SIZE,
                     offset: statusOrders.length,
                     with: {
                         barcodes: true,
@@ -133,5 +222,50 @@ export class Ozon {
         return allOrders && allOrders.length > 0
             ? allOrders
             : null;
+    }
+
+    matchProducts(sourceProducts, ozonProducts) {
+        let matched = [];
+
+        for (let sourceProduct of sourceProducts) {
+            let matchedOzonProducts = matchByBarcodeOrSku(sourceProduct, ozonProducts);
+            if (matchedOzonProducts && matchedOzonProducts.length > 0) {
+                for (let ozonProduct of matchedOzonProducts) {
+                    matched.push({
+                        source: sourceProduct,
+                        target: ozonProduct,
+                    });
+                }
+            }
+        }
+
+        return matched;
+    }
+
+    updateQuantities(stocks) {
+        return this.callPostMethod('v1/product/import/stocks', {stocks});
+    }
+
+    async syncLeftovers(fromStocks, toStocks) {
+        let matchedStocks = this.matchProducts(fromStocks, toStocks);
+
+        let allStocks = matchedStocks.map(matched => ({
+            offer_id: matched.target.sku,
+            product_id: matched.target.id,
+            stock: matched.source.quantity,
+        }));
+
+        let errors = [];
+        let stocksChunks = splitIntoChunks(allStocks, API_MAX_STOCKS_CHUNK_SIZE);
+        for (let chunk of stocksChunks) {
+            let {result} = await this.updateQuantities(chunk);
+            for (let productResult of result) {
+                if (productResult.errors && productResult.errors.length > 0) {
+                    errors = errors.concat(productResult.errors);
+                }
+            }
+        }
+
+        return errors.length === 0 ? null : errors;
     }
 }

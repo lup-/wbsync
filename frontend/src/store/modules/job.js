@@ -33,6 +33,17 @@ export default {
     state: {
         activeJobs: [],
     },
+    getters: {
+        uploadJobs(state) {
+            return state.activeJobs.filter(job => job.data && job.data.type === 'upload');
+        },
+        downloadJobs(state) {
+            return state.activeJobs.filter(job => job.data && job.data.type === 'download');
+        },
+        syncJobs(state) {
+            return state.activeJobs.filter(job => job.data && job.data.type === 'sync');
+        },
+    },
     actions: {
         async uploadStocks({commit}, params) {
             let newJob = {
@@ -65,7 +76,7 @@ export default {
             return waitForJobEnd(createdJob, commit, 'stocks');
         },
         async syncOrders({commit}) {
-            let {data} = await axios.post(`/api/job/orders`, {job: {}});
+            let {data} = await axios.post(`/api/job/orders`, {job: {type: 'sync'}});
             let createdJob = data.job;
 
             commit('setSuccessMessage', 'Синхронизация заказов запущена!', { root: true });

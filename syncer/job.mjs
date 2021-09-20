@@ -22,7 +22,7 @@ stocksQueue.process(async (job) => {
     debug('Processing %s job %s', jobType, job.id);
     if (jobType === 'upload') {
         let {ids: stockIds, field: idField, from, to} = job.data;
-        result = await uploadStocks(stockIds, idField, from, to);
+        result = await uploadStocks(stockIds, idField, from, to, debug);
     }
 
     if (jobType === 'download') {

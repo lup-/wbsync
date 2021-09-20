@@ -69,43 +69,23 @@ function makeDbProductsFromWildberriesSaleV1(wbv1Sale) {
     }];
 }
 function makeDbProductsFromWildberriesV2(wbv2Order) {
-    return [{
-        id: null,
-        sku: null,
-        color: null,
-        size: {
-            ru: null,
-            de: null
-        },
-        variant: null,
-        title: null,
-        brand: null,
-        barcode: wbv2Order.barcode,
-        quantity: null,
-        price: wbv2Order.totalPrice,
-    }];
+    let wb = new Wildberries();
+    return wb.makeDbProductsFromOrderV2(wbv2Order);
 }
 function makeDbProductsFromInsales(insalesOrder, key) {
     let insales = new InSales();
     return insalesOrder.order_lines.map(orderLine => insales.makeDbProductFromOrderLine(orderLine, key))
 }
-function makeDbProductsFromOzon(ozonOrder) {
-    return ozonOrder.products.map(product => {
-        return {
-            id: product.sku,
-            sku: product.offer_id,
-            color: null,
-            size: {
-                ru: null,
-                de: null
-            },
-            variant: null,
-            title: product.name,
-            brand: null,
-            barcode: null,
-            quantity: product.quantity,
-            price: Math.floor(parseFloat(product.price) * 100),
+function makeDbProductsFromOzon(ozonOrder, ozonProducts) {
+    let ozon = new Ozon();
+    return ozonOrder.products.map(orderProduct => {
+        let dbProduct = ozon.makeDbProduct(orderProduct);
+        let ozonProduct = ozonProducts.find(product => product.title === dbProduct.title && product.sku === dbProduct.sku);
+        if (ozonProduct) {
+            dbProduct.barcode = ozonProduct.barcode;
         }
+
+        return dbProduct;
     });
 }
 
@@ -213,9 +193,9 @@ function makeDbOrderFromInsales(insalesOrder, key) {
         raw: insalesOrder
     }
 }
-function makeDbOrderFromOzon(ozonOrder, key) {
+function makeDbOrderFromOzon(ozonOrder, key, ozonProducts) {
     let ozon = new Ozon();
-    let products = makeDbProductsFromOzon(ozonOrder, key);
+    let products = makeDbProductsFromOzon(ozonOrder, ozonProducts);
     let totalPrice = products.reduce((price, product) => price + product.price, 0);
 
     return {
@@ -232,7 +212,7 @@ function makeDbOrderFromOzon(ozonOrder, key) {
         statusText: ozon.statusText(ozonOrder.status),
         price: totalPrice,
 
-        products: makeDbProductsFromOzon(ozonOrder, key),
+        products,
 
         raw: ozonOrder
     }
@@ -463,8 +443,10 @@ async function syncOzonOrders(key, db) {
     let source = 'ozon';
 
     let dateFrom = await getDateFrom(source, db);
-    let orders = await ozon.fetchOrders(dateFrom)
-    let preparedOrders = orders.filter(order => Boolean(order)).map(order => makeDbOrderFromOzon(order, key));
+    let orders = await ozon.fetchOrders(dateFrom);
+    let ozonProducts = await db.collection('stock').find({keyId: key.id}).toArray();
+
+    let preparedOrders = orders.filter(order => Boolean(order)).map(order => makeDbOrderFromOzon(order, key, ozonProducts));
 
     let beforeUpdate = (updatedOrder, savedOrder) => {
         updatedOrder.updated = moment().unix();

@@ -2,6 +2,7 @@ import axios from "axios";
 import clone from "lodash.clonedeep";
 import moment from "moment";
 import {normalizeDate, splitIntoChunks} from "../utils.mjs";
+import {Product} from "../dbProduct.mjs";
 
 const API_BASE_URL = 'https://myshop-bmb974.myinsales.ru/';
 const MAX_PER_PAGE = 100;
@@ -114,25 +115,22 @@ export class InSales {
     }
 
     makeDbProductFromOrderLine(orderLine, key) {
-        return {
+        let product = new Product({
             source: 'insales',
             sourceType: 'orderLine',
             keyId: key.id,
 
             id: orderLine.product_id,
             sku: orderLine.sku,
-            color: null,
-            size: {
-                ru: null,
-                de: null
-            },
             variant: orderLine.variant_id,
             title: orderLine.title,
-            brand: null,
             barcode: orderLine.barcode,
             quantity: orderLine.quantity,
             price: parseInt( orderLine.full_total_price * 100)
-        }
+        });
+        product.setRaw('orderLine', orderLine);
+
+        return product.getJson();
     }
 
     findOptionWithValue(optionId, optionValues) {
@@ -156,7 +154,7 @@ export class InSales {
             ? this.findOptionWithValue(optionIds.sizeDe, variant.option_values) || null
             : null;
 
-        return {
+        let product = new Product({
             source: 'insales',
             sourceType: 'variant',
             keyId: key.id,
@@ -170,11 +168,13 @@ export class InSales {
             },
             product: variant.product_id,
             title: variant.title,
-            brand: null,
             barcode: variant.barcode,
             quantity: variant.quantity,
             price: Math.round(parseFloat(variant.price) * 100)
-        }
+        });
+        product.setRaw('variant', variant);
+
+        return product.getJson();
     }
 
     findProductsByFunction(matchFunction, insalesProducts) {
@@ -206,7 +206,7 @@ export class InSales {
         return this.findProductsByFunction(matchFunction, insalesProducts)
     }
 
-    matchProducts(dbProducts, insalesProducts, options) {
+    matchProducts(sourceProducts, insalesProducts, options) {
         let sizeOptionIds = options
             .filter(option => option.title.toLowerCase().indexOf('размер') !== -1)
             .map(option => option.id);
@@ -215,19 +215,19 @@ export class InSales {
         let missingInDb = [];
         let missingInInsales = [];
 
-        for (let dbProduct of dbProducts) {
-            let matchedProducts = this.findProductsByVariantField('barcode', dbProduct.barcode, insalesProducts);
+        for (let sourceProduct of sourceProducts) {
+            let matchedProducts = this.findProductsByVariantField('barcode', sourceProduct.barcode, insalesProducts);
             if (!matchedProducts) {
                 let skuMatchFunction = variant => {
-                    if (variant.sku === '' || dbProduct.sku === '') {
+                    if (variant.sku === '' || sourceProduct.sku === '') {
                         return false;
                     }
 
-                    if (variant.sku.indexOf(dbProduct.sku) !== 0) {
+                    if (variant.sku.indexOf(sourceProduct.sku) !== 0) {
                         return false;
                     }
 
-                    if (dbProduct.size.ru === "" && dbProduct.size.de === "") {
+                    if (sourceProduct.size.ru === "" && sourceProduct.size.de === "") {
                         return false;
                     }
 
@@ -235,8 +235,8 @@ export class InSales {
                         .filter(optionValue => sizeOptionIds.indexOf(optionValue.option_name_id) !== -1)
                         .map(optionValue => optionValue.title.replace(/ .*$/, ''))
 
-                    let ruSizeMatches = dbProduct.size.ru !== "" && sizes.indexOf(dbProduct.size.ru) !== -1;
-                    let deSizeMatches = dbProduct.size.de !== "" && sizes.indexOf(dbProduct.size.de) !== -1;
+                    let ruSizeMatches = sourceProduct.size.ru !== "" && sizes.indexOf(sourceProduct.size.ru) !== -1;
+                    let deSizeMatches = sourceProduct.size.de !== "" && sizes.indexOf(sourceProduct.size.de) !== -1;
                     let hasMatchingSizes = ruSizeMatches || deSizeMatches;
 
                     return hasMatchingSizes;
@@ -249,7 +249,7 @@ export class InSales {
                 for (let product of matchedProducts) {
                     for (let variant of product.matchingVariants) {
                         matched.push({
-                            db: dbProduct,
+                            db: sourceProduct,
                             product,
                             variant,
                         });
@@ -257,24 +257,24 @@ export class InSales {
                 }
             }
             else {
-                missingInInsales.push(dbProduct);
+                missingInInsales.push(sourceProduct);
             }
         }
 
         return {matched, missingInDb, missingInInsales};
     }
 
-    async syncLeftovers(dbStocks) {
+    async syncLeftovers(fromStocks) {
         const MAX_VARIANTS_PER_REQUEST = 100;
 
-        if (dbStocks.length === 0) {
+        if (fromStocks.length === 0) {
             return true;
         }
 
         let insalesProducts = await this.fetchProducts();
         let options = await this.fetchOptions();
 
-        let {matched: matchedProducts} = this.matchProducts(dbStocks, insalesProducts, options);
+        let {matched: matchedProducts} = this.matchProducts(fromStocks, insalesProducts, options);
         let variants = matchedProducts.map(matched => ({
             id: matched.variant.id,
             quantity: matched.db.quantity,
@@ -294,7 +294,7 @@ export class InSales {
         return errorIds.length === 0 ? null : errorIds;
     }
 
-    async getMatchedStocks(dbStocks, key) {
+    async fetchStocksForDb(key) {
         let insalesProducts = await this.fetchProducts();
         let options = await this.fetchOptions();
         if (!options) {
