@@ -178,7 +178,7 @@ module.exports = {
         }
 
         let notEmptyMatchFieldFilter = {};
-        notEmptyMatchFieldFilter[matchField] = {$nin: [null, false]};
+        notEmptyMatchFieldFilter[matchField] = {$nin: [null, false, '']};
 
         let pipeline = [
             { $match: notEmptyMatchFieldFilter },
