@@ -58,7 +58,7 @@ function prepareProducts(products) {
 async function downloadStocksForKey(db, key, debug) {
     if (key.type === 'insales') {
         debug('Syncing Insales %s', key.title);
-        let insales = new InSales(key.insales_api_id, key.insales_api_password);
+        let insales = new InSales(key.insales_api_id, key.insales_api_password, key.api_base);
         let insalesStocks = await insales.fetchStocksForDb(key);
         return await syncCollectionItems(
             db,
@@ -160,7 +160,7 @@ async function uploadStocks(stockIds, idField, from, to, debug) {
 
     let provider = null;
     if (toSource === 'insales') {
-        provider = new InSales(key.insales_api_id, key.insales_api_password);
+        provider = new InSales(key.insales_api_id, key.insales_api_password, key.api_base);
     }
 
     if (toSource === 'wildberries') {

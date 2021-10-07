@@ -75,6 +75,9 @@ services:
 
   updater:
     image: node:15-alpine
+    restart: ${RESTART}
+    ports:
+      - ${UPDATER_DEBUG_PORT}:9229
     depends_on:
       - mongo
       - redis

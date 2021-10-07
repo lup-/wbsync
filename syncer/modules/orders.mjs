@@ -431,7 +431,7 @@ async function syncJoinedWBOrders(key, db) {
     return syncCollectionItems(db, joinedOrders, 'orders', 'id', 'status', beforeUpdate);
 }
 async function syncInsalesOrders(key, db) {
-    let insales = new InSales(key.insales_api_id, key.insales_api_password);
+    let insales = new InSales(key.insales_api_id, key.insales_api_password, key.api_base);
     let source = 'insales';
 
     let dateFrom = await getDateFrom(source, db);

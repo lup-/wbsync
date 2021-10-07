@@ -9,6 +9,12 @@
                     <v-textarea v-model="item.wb_new" label="Доступ к новому API"></v-textarea>
                 </div>
                 <div v-if="item.type === 'insales'">
+                    <v-text-field v-model="item.api_base"
+                        class="mb-4"
+                        label="Базовый адрес API магазина"
+                        hint="https://myshop-bmb974.myinsales.ru/"
+                        persistent-hint
+                    ></v-text-field>
                     <v-text-field v-model="item.insales_api_id" label="Идентификатор"></v-text-field>
                     <v-text-field v-model="item.insales_api_password" label="Пароль"></v-text-field>
                 </div>

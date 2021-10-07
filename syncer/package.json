@@ -7,7 +7,7 @@
   "scripts": {
     "orders": "node orders.mjs",
     "stocks": "node stocks.mjs",
-    "job": "node job.mjs"
+    "job": "node --inspect=0.0.0.0 job.mjs"
   },
   "keywords": [],
   "author": "",

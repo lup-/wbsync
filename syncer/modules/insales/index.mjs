@@ -5,15 +5,16 @@ import {normalizeDate, splitIntoChunks} from "../utils.mjs";
 import {Product} from "../dbProduct.mjs";
 import createDebug from "debug";
 
-const API_BASE_URL = 'https://myshop-bmb974.myinsales.ru/';
 const MAX_PER_PAGE = 100;
 
 const debug = createDebug('syncer:job:insales');
 
 export class InSales {
-    constructor(apiId = null, apiPassword = null) {
+    constructor(apiId = null, apiPassword = null, apiBaseUrl = null) {
         this.apiId = apiId;
         this.apiPassword = apiPassword;
+        this.apiBaseUrl = (apiBaseUrl+'/').replace(/\/\/$/,'/');
+        debug('Shop url %s', this.apiBaseUrl);
     }
 
     async fetchProducts() {
@@ -95,7 +96,7 @@ export class InSales {
     }
 
     async callGetMethod(method, params) {
-        let url = API_BASE_URL + method;
+        let url = this.apiBaseUrl + method;
         try {
             let response = await axios.get(url, {params, auth: this.apiAuth()});
             return response.data;
@@ -107,13 +108,13 @@ export class InSales {
     }
 
     async callPostMethod(method, params) {
-        let url = `${API_BASE_URL}/${method}`;
+        let url = this.apiBaseUrl + method;
         let response = await axios.post(url, params, {auth: this.apiAuth()});
         return response.data;
     }
 
     async callPutMethod(method, params) {
-        let url = `${API_BASE_URL}/${method}`;
+        let url = this.apiBaseUrl + method;
         let response = await axios.put(url, params, {auth: this.apiAuth()});
         return response.data;
     }

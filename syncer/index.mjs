@@ -18,7 +18,7 @@ const uploadKeyId = process.argv[2]; //xihRLvsii
 
     debug('Key %s, type: %s', key.title, key.type);
     if (key.type === 'insales') {
-        let insales = new InSales(key.insales_api_id, key.insales_api_password);
+        let insales = new InSales(key.insales_api_id, key.insales_api_password, key.api_base);
         let dbStocks = await db.collection('stock').find({deleted: {$in: [null, false]}}).toArray();
         await insales.syncLeftovers(dbStocks);
     }
