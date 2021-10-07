@@ -57,7 +57,7 @@ function prepareProducts(products) {
 
 async function downloadStocksForKey(db, key, debug) {
     if (key.type === 'insales') {
-        debug('Syncing %s', key.title);
+        debug('Syncing Insales %s', key.title);
         let insales = new InSales(key.insales_api_id, key.insales_api_password);
         let insalesStocks = await insales.fetchStocksForDb(key);
         return await syncCollectionItems(
@@ -72,7 +72,7 @@ async function downloadStocksForKey(db, key, debug) {
     }
 
     if (key.type === 'wildberries') {
-        debug('Syncing %s', key.title);
+        debug('Syncing Wildberries %s', key.title);
         let wb = new Wildberries(key.wb_64bit, key.wb_new);
         let wbStocks = await wb.fetchStocksForDb(key);
         return await syncCollectionItems(
@@ -87,7 +87,7 @@ async function downloadStocksForKey(db, key, debug) {
     }
 
     if (key.type === 'ozon') {
-        debug('Syncing %s', key.title);
+        debug('Syncing Ozon %s', key.title);
         let ozon = new Ozon(key.client_id, key.api_key);
         let ozonStocks = await ozon.fetchStocksForDb(key);
         return await syncCollectionItems(

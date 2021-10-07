@@ -3,9 +3,12 @@ import clone from "lodash.clonedeep";
 import moment from "moment";
 import {normalizeDate, splitIntoChunks} from "../utils.mjs";
 import {Product} from "../dbProduct.mjs";
+import createDebug from "debug";
 
 const API_BASE_URL = 'https://myshop-bmb974.myinsales.ru/';
 const MAX_PER_PAGE = 100;
+
+const debug = createDebug('syncer:job:insales');
 
 export class InSales {
     constructor(apiId = null, apiPassword = null) {
@@ -98,6 +101,7 @@ export class InSales {
             return response.data;
         }
         catch (e) {
+            debug('Error calling %s method: %s', method, e);
             return null;
         }
     }
@@ -296,7 +300,9 @@ export class InSales {
 
     async fetchStocksForDb(key) {
         let insalesProducts = await this.fetchProducts();
+        debug('Fetched %s products', insalesProducts.length);
         let options = await this.fetchOptions();
+        debug('Fetched %s options', options.length);
         if (!options) {
             options = [];
         }
@@ -331,6 +337,7 @@ export class InSales {
             return stocks;
         }, []);
 
+        debug('Loaded %s variants', insalesStocks.length);
         return insalesStocks;
     }
 }
