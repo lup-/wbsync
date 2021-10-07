@@ -3,6 +3,7 @@ const {getOrderFilter} = require('../modules/Orders');
 const shortid = require('shortid');
 const moment = require('moment');
 const {clone} = require("mongodb/lib/core/topologies/shared");
+const iconv = require('iconv-lite');
 
 const COLLECTION_NAME = 'stock';
 const ITEM_NAME = 'stock';
@@ -381,7 +382,7 @@ module.exports = {
             ctx.attachment(`stocks_${moment().unix()}.csv`);
             ctx.statusCode = 200;
             ctx.type = 'text/csv';
-            ctx.body = csv;
+            ctx.body = iconv.encode(csv, 'windows-1251');
         }
         else {
             let response = {};
