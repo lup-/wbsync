@@ -39,6 +39,12 @@
                                 >Отправить остатки</v-btn>
                             </template>
                         </upload-stocks-dialog>
+                        <v-btn color="secondary"
+                            :loading="loading"
+                            outlined
+                            class="ml-2"
+                            @click="downloadCsv"
+                        ><v-icon>mdi-download</v-icon> CSV</v-btn>
                     </template>
                 </v-data-table>
             </v-col>
@@ -67,6 +73,7 @@
 
             return {
                 loading: false,
+                downloading: false,
                 options: {},
                 filter: {},
                 ordersFilter: {},
@@ -148,8 +155,17 @@
                 await this.$store.dispatch('key/loadItems');
                 this.loading = false;
             },
-            async loadItems() {
-                this.loading = true;
+            downloadCsv() {
+                return this.loadItems(true);
+            },
+            async loadItems(downloadAsCsv = false) {
+                if (downloadAsCsv) {
+                    this.downloading = true;
+                }
+                else {
+                    this.loading = true;
+                }
+
                 let sort = this.options.sortBy && this.options.sortBy.length > 0
                     ? this.options.sortBy.reduce((sortFields, fieldId, index) => {
                         let isDesc = this.options.sortDesc[index];
@@ -181,12 +197,18 @@
                 }
 
                 let params = {
+                    downloadAsCsv,
                     matchField: this.matchField,
                     onlyMatched: Boolean(this.filter.onlyMatched)
                 };
 
                 await this.$store.dispatch('stock/loadCompareItems', {filter, sort, limit, offset, params});
-                this.loading = false;
+                if (downloadAsCsv) {
+                    this.downloading = false;
+                }
+                else {
+                    this.loading = false;
+                }
             },
             async loadOrderEnums() {
                 this.loading = true;
@@ -247,75 +269,11 @@
                 return baseHeaders.concat(compareHeaders);
             },
             items() {
-                let variants = this.$store.state.stock.compareVariants || [];
-                let compareField = this.compareField;
                 let items = this.loading
                     ? []
                     : this.$store.state.stock.compare || [];
 
-                let compareItems = items.map(item => {
-                        let compareItem = {title: null};
-                        if (item.sku) {
-                            compareItem.sku = item.sku;
-                        }
-
-                        if (item.barcode) {
-                            compareItem.barcode = item.barcode;
-                        }
-
-                        let allValuesEqual = true;
-                        let firstValue = null;
-                        let allValuesZero = true;
-
-                        let source = this.filter.source && this.filter.source[0] || '1c';
-                        for (let variant of variants) {
-                            let stockItem = item[variant.id];
-                            let value = null;
-                            if (stockItem instanceof Array) {
-                                value = stockItem.map(stockItem => {
-                                    return typeof (stockItem[compareField]) !== 'undefined'
-                                        ? stockItem[compareField]
-                                        : null;
-                                });
-                            }
-                            else {
-                                value = stockItem && typeof (stockItem[compareField]) !== 'undefined'
-                                    ? stockItem[compareField]
-                                    : null;
-                            }
-
-                            if (firstValue === null) {
-                                firstValue = value instanceof Array ? value[0] : value;
-                            }
-
-                            if (value instanceof Array) {
-                                for (let singleValue of value) {
-                                    allValuesEqual = allValuesEqual && firstValue === singleValue;
-                                    allValuesZero = allValuesZero && Number(singleValue) === 0;
-                                }
-                            }
-                            else {
-                                allValuesEqual = allValuesEqual && firstValue === value;
-                                allValuesZero = allValuesZero && Number(value) === 0;
-                            }
-
-                            compareItem[variant.id] = value instanceof Array
-                                ? value.map(item => item || 0).join(', ')
-                                : value;
-
-                            if (variant.source === source) {
-                                compareItem.title = stockItem ? stockItem.title : null;
-                            }
-                        }
-
-                        compareItem.todaySum = item.todaySum !== '' ? item.todaySum : '';
-                        compareItem.allValuesEqual = allValuesEqual;
-                        compareItem.allValuesZero = allValuesZero;
-
-                        compareItem.raw = item;
-
-                        return compareItem;
-                    });
+                let compareItems = items;
 
                 if (this.onlyUnequal) {
                     compareItems = compareItems.filter(item => item.allValuesEqual === false && item.allValuesZero === false);

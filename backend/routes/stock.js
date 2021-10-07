@@ -9,22 +9,81 @@ const ITEM_NAME = 'stock';
 const ITEMS_NAME = 'stock';
 const SORT_A_TO_BEGIN = -1;
 const SORT_B_TO_BEGIN = 1;
+const CSV_SEPARATOR = ";"
 
-function todayStockCount() {
-    let stockCount = {};
-    for (let order of this.todayOrders) {
-        for (let product of order.products) {
-            let id = product[this.matchField];
-            if (typeof (stockCount[id]) === 'undefined') {
-                stockCount[id] = product[this.compareField];
+function lineToCsv(items) {
+    return `"${items.join(`"${CSV_SEPARATOR}"`)}"`;
+}
+
+function stockToCsv(item, fields) {
+    let fieldValues = fields.map(field => item[field] || '');
+    return lineToCsv(fieldValues);
+}
+
+function prepareItemsForFrontend(items, variants, compareField, filter) {
+    return items.map(item => {
+        let compareItem = {title: null};
+        if (item.sku) {
+            compareItem.sku = item.sku;
+        }
+
+        if (item.barcode) {
+            compareItem.barcode = item.barcode;
+        }
+
+        let allValuesEqual = true;
+        let firstValue = null;
+        let allValuesZero = true;
+
+        let source = filter.source && filter.source[0] || '1c';
+        for (let variant of variants) {
+            let stockItem = item[variant.id];
+            let value = null;
+            if (stockItem instanceof Array) {
+                value = stockItem.map(stockItem => {
+                    return typeof (stockItem[compareField]) !== 'undefined'
+                        ? stockItem[compareField]
+                        : null;
+                });
             }
             else {
-                stockCount[id] += product[this.compareField];
+                value = stockItem && typeof (stockItem[compareField]) !== 'undefined'
+                    ? stockItem[compareField]
+                    : null;
+            }
+
+            if (firstValue === null) {
+                firstValue = value instanceof Array ? value[0] : value;
+            }
+
+            if (value instanceof Array) {
+                for (let singleValue of value) {
+                    allValuesEqual = allValuesEqual && firstValue === singleValue;
+                    allValuesZero = allValuesZero && Number(singleValue) === 0;
+                }
+            }
+            else {
+                allValuesEqual = allValuesEqual && firstValue === value;
+                allValuesZero = allValuesZero && Number(value) === 0;
+            }
+
+            compareItem[variant.id] = value instanceof Array
+                ? value.map(item => item || 0).join(', ')
+                : value;
+
+            if (variant.source === source) {
+                compareItem.title = stockItem ? stockItem.title : null;
             }
         }
-    }
 
-    return stockCount;
+        compareItem.todaySum = item.todaySum !== '' ? item.todaySum : '';
+        compareItem.allValuesEqual = allValuesEqual;
+        compareItem.allValuesZero = allValuesZero;
+
+        compareItem.raw = item;
+
+        return compareItem;
+    });
 }
 
 module.exports = {
@@ -103,6 +162,7 @@ module.exports = {
         let onlyMatched = ctx.request.body.onlyMatched ? Boolean(ctx.request.body.onlyMatched) : true;
         let matchField = ctx.request.body.matchField || 'barcode';
         let compareField = ctx.request.body.compareField || 'quantity';
+        let downloadAsCsv = ctx.request.body.downloadAsCsv || false;
 
         let inputOrderFilter = {};
         let hasOrdersFilter = false;
@@ -196,11 +256,14 @@ module.exports = {
         }
 
         let cursor = db.collection(COLLECTION_NAME)
-            .aggregate(pipeline)
-            .skip(offset);
+            .aggregate(pipeline);
 
-        if (limit !== -1) {
-            cursor = cursor.limit(limit);
+        if (!downloadAsCsv) {
+            cursor = cursor.skip(offset);
+
+            if (limit !== -1) {
+                cursor = cursor.limit(limit);
+            }
         }
 
         let items = await cursor.toArray();
@@ -274,12 +337,61 @@ module.exports = {
         let countItem = await db.collection(COLLECTION_NAME).aggregate(pipeline).toArray();
         let totalCount = countItem && countItem[0] ? countItem[0].totalDocuments : 0;
 
-        let response = {};
-        response[ITEMS_NAME] = compareItems;
-        response['totalCount'] = totalCount;
-        response['variants'] = uniqueKeySources;
+        let frontendItems = prepareItemsForFrontend(compareItems, uniqueKeySources, compareField, filter);
 
-        ctx.body = response;
+        if (downloadAsCsv) {
+            let defaultFilter = {
+                'deleted': {$in: [null, false]}
+            };
+
+            let filter = Object.assign(defaultFilter, inputFilter);
+
+            let db = await getDb();
+            let keys = await db.collection('keys').find({'deleted': {$in: [null, false]}}).toArray();
+            let keyTitles = keys.reduce((aggr, key) => {
+                aggr[key.id] = key.title;
+                return aggr;
+            }, {});
+
+            let matchBySku = filter && filter.matchField === 'sku';
+            let jsonFields = [
+                {text: matchBySku ? 'Артикул' : 'Штрих-код', value: matchBySku ? 'sku' : 'barcode'},
+                {text: 'Название', value: 'title'},
+                {text: 'Сколько в заказах', value: 'todaySum', sortable: false}
+            ];
+
+            let compareHeaders = uniqueKeySources.map(variant => ({
+                text: variant.keyId ? keyTitles[variant.keyId] : variant.source,
+                value: variant.id,
+            }));
+
+            jsonFields = jsonFields.concat(compareHeaders);
+
+            let header = jsonFields.map(item => item.text);
+            let fieldCodes = jsonFields.map(item => item.value);
+
+            let csvLines = [];
+            csvLines.push(lineToCsv(header));
+
+            let stockLines = frontendItems.map(compareItem => stockToCsv(compareItem, fieldCodes))
+            csvLines = csvLines.concat(stockLines);
+
+            let csv = csvLines.join('\n');
+
+            ctx.attachment(`stocks_${moment().unix()}.csv`);
+            ctx.statusCode = 200;
+            ctx.type = 'text/csv';
+            ctx.body = csv;
+        }
+        else {
+            let response = {};
+            response[ITEMS_NAME] = compareItems;
+            response['compare'] = frontendItems;
+            response['totalCount'] = totalCount;
+            response['variants'] = uniqueKeySources;
+
+            ctx.body = response;
+        }
     },
     async add(ctx) {
         let itemFields = ctx.request.body[ITEM_NAME];

@@ -1,5 +1,6 @@
 import Crud from "./baseCrud";
 import axios from "axios";
+import moment from "moment";
 
 const API_LIST_URL = `/api/stock/list`;
 const API_ADD_URL = `/api/stock/add`;
@@ -8,6 +9,31 @@ const API_DELETE_URL = `/api/stock/delete`;
 
 const NAME_ITEMS = 'stock';
 const NAME_ITEM = 'stock';
+
+function downloadFile(data, filename, mime, bom) {
+    let blobData = (typeof bom !== 'undefined') ? [bom, data] : [data]
+    let blob = new Blob(blobData, {type: mime || 'application/octet-stream'});
+    if (typeof window.navigator.msSaveBlob !== 'undefined') {
+        window.navigator.msSaveBlob(blob, filename);
+    }
+    else {
+        let blobURL = (window.URL && window.URL.createObjectURL) ? window.URL.createObjectURL(blob) : window.webkitURL.createObjectURL(blob);
+        let tempLink = document.createElement('a');
+        tempLink.style.display = 'none';
+        tempLink.href = blobURL;
+        tempLink.setAttribute('download', filename);
+        if (typeof tempLink.download === 'undefined') {
+            tempLink.setAttribute('target', '_blank');
+        }
+
+        document.body.appendChild(tempLink);
+        tempLink.click();
+        setTimeout(function() {
+            document.body.removeChild(tempLink);
+            window.URL.revokeObjectURL(blobURL);
+        }, 200)
+    }
+}
 
 export default new Crud({
     API_LIST_URL,
@@ -33,11 +59,20 @@ export default new Crud({
                 return;
             }
 
-            let response = await axios.post('/api/stock/match', {filter, limit, offset, sort, ...params});
-            await commit('setCompareParams', {filter, limit, offset, sort});
-            await commit('setCompareTotalCount', response.data['totalCount']);
-            await commit('setCompareVariants', response.data['variants']);
-            return commit('setCompareItems', response.data[NAME_ITEMS]);
+            let download = params.downloadAsCsv || false;
+
+            if (download) {
+                let data = {filter, limit, offset, sort, ...params};
+                let response = await axios({url: '/api/stock/match', method: 'POST', data, responseType: 'blob'});
+                downloadFile(response.data, `stocks_${moment().unix()}.csv`);
+            }
+            else {
+                let response = await axios.post('/api/stock/match', {filter, limit, offset, sort, ...params});
+                await commit('setCompareParams', {filter, limit, offset, sort});
+                await commit('setCompareTotalCount', response.data['totalCount']);
+                await commit('setCompareVariants', response.data['variants']);
+                await commit('setCompareItems', response.data['compare']);
+            }
         },
     },
     mutations: {

@@ -104,7 +104,10 @@
                 await this.$store.dispatch('key/loadItems');
                 this.loading = false;
             },
-            async loadItems() {
+            downloadCsv() {
+                return this.loadItems(true);
+            },
+            async loadItems(downloadAsCsv = false) {
                 this.loading = true;
                 let sort = this.options.sortBy && this.options.sortBy.length > 0
                     ? this.options.sortBy.reduce((sortFields, fieldId, index) => {
@@ -125,7 +128,8 @@
                     filter['source'] = '1c';
                 }
 
-                await this.$store.dispatch('stock/loadItems', {filter, sort, limit, offset});
+                let params = {downloadAsCsv};
+                await this.$store.dispatch('stock/loadItems', {filter, sort, limit, offset, params});
                 this.loading = false;
             },
             deleteItem(item) {
