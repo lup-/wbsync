@@ -25,6 +25,7 @@ const routes = [
     { name: 'orderList', path: '/order/', components: {content: OrderList, header: OrderHeader}, meta: {requiresAuth: true, group: 'orderList'} },
     { name: 'keyList', path: '/key/', components: {content: KeyList}, meta: {requiresAuth: true, group: 'keyList'} },
     { name: 'usersList', path: '/users/', components: {content: UsersList}, meta: {requiresAuth: true, group: 'usersList'} },
+    { name: 'userNew', path: '/user/new', components: {content: UserEdit}, meta: {requiresAuth: true, group: 'usersList'} },
     { name: 'userEdit', path: '/user/:id', components: {content: UserEdit}, meta: {requiresAuth: true, group: 'usersList'} },
 ]
 

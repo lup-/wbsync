@@ -96,7 +96,7 @@ export default {
         fromSources() {
             return [
                 {text: '1С', source: '1c', keyId: null},
-            ]
+            ].concat(this.toSources);
         }
     }
 }
