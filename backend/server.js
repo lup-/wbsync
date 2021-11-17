@@ -49,6 +49,10 @@ router
     .get('/api/job/last', job.lastJobs.bind(job));
 
 app
+    .use(async (ctx, next) => {
+        ctx.request.socket.setTimeout(5 * 60 * 1000);
+        await next();
+    })
     .use(bodyParser({
         formLimit: '50mb',
         jsonLimit: '1mb',
@@ -56,4 +60,6 @@ app
     .use(router.routes())
     .use(router.allowedMethods());
 
-app.listen(PORT, HOST);
+let server = app.listen(PORT, HOST);
+server.setTimeout(5*60*1000);
+server.timeout=5*60*1000;

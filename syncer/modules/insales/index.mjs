@@ -146,7 +146,7 @@ export class InSales {
         return optionValues.find(optionValue => optionValue.option_name_id === optionId);
     }
 
-    makeDbProductFromVariant(variant, optionIds, key) {
+    makeDbProductFromVariant(variant, optionIds, key, insalesProduct) {
         let colorOption = optionIds && optionIds.color
             ? this.findOptionWithValue(optionIds.color, variant.option_values) || null
             : null;
@@ -159,6 +159,10 @@ export class InSales {
             ? this.findOptionWithValue(optionIds.sizeDe, variant.option_values) || null
             : null;
 
+        let anySizeOption = optionIds && optionIds.sizeDe
+            ? this.findOptionWithValue(optionIds.sizeAny, variant.option_values) || null
+            : null;
+
         let product = new Product({
             source: 'insales',
             sourceType: 'variant',
@@ -169,14 +173,16 @@ export class InSales {
             color: colorOption ? colorOption.title : null,
             size: {
                 ru: ruSizeOption ? ruSizeOption.title : null,
-                de: deSizeOption ? deSizeOption.title : null
+                de: deSizeOption ? deSizeOption.title : null,
+                any: anySizeOption ? anySizeOption.title : null,
             },
             product: variant.product_id,
-            title: variant.title,
+            title: insalesProduct.title + ': ' + variant.title,
             barcode: variant.barcode,
             quantity: variant.quantity,
             price: Math.round(parseFloat(variant.price) * 100)
         });
+        product.setRaw('product', insalesProduct);
         product.setRaw('variant', variant);
 
         return product.getJson();
@@ -320,6 +326,13 @@ export class InSales {
                 return lcTitle.indexOf('размер') !== -1 && lcTitle.indexOf('de') !== -1;
             })
             .map(option => option.id);
+        let anySizeOptionIds = options
+            .filter(option => {
+                let lcTitle = option.title.toLowerCase();
+                return lcTitle.indexOf('размер') !== -1;
+            })
+            .map(option => option.id);
+
         let colorOptionIds = options
             .filter(option => option.title.toLowerCase().indexOf('цвет') !== -1)
             .map(option => option.id);
@@ -328,11 +341,12 @@ export class InSales {
             color: colorOptionIds,
             sizeRu: ruSizeOptionIds,
             sizeDe: deSizeOptionIds,
+            sizeAny: anySizeOptionIds
         }
 
         let insalesStocks = insalesProducts.reduce((stocks, product) => {
             if (product && product.variants) {
-                let variants = product.variants.map(variant => this.makeDbProductFromVariant(variant, neededOptionIds, key));
+                let variants = product.variants.map(variant => this.makeDbProductFromVariant(variant, neededOptionIds, key, product));
                 stocks = stocks.concat(variants);
             }
             return stocks;

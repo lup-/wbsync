@@ -4,7 +4,7 @@
             <slot name="activator" v-bind="args"></slot>
         </template>
         <v-card class="dialog_raw">
-            <v-card-title>Исходные данные заказа {{orderId}}</v-card-title>
+            <v-card-title>Исходные данные</v-card-title>
             <v-card-text>
                 <v-treeview
                     open-on-click

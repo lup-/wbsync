@@ -73,6 +73,9 @@
             showMessage: false,
             mini: true,
         }),
+        async created() {
+            await this.loadKeys();
+        },
         watch: {
             appError() {
                 this.showError = true;
@@ -85,7 +88,10 @@
             async logout() {
                 await this.$store.dispatch('logoutUser');
                 return this.$router.push({name: 'login'});
-            }
+            },
+            async loadKeys() {
+                await this.$store.dispatch('key/loadItems');
+            },
         },
         computed: {
             appError() {
@@ -102,7 +108,8 @@
             },
             isLoading() {
                 return this.$store.state.loading;
-            }
+            },
+
         }
     }
 </script>

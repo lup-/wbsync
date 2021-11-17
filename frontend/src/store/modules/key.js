@@ -16,4 +16,49 @@ export default new Crud({
 
     NAME_ITEMS,
     NAME_ITEM
+}, {
+    state: {
+        types: [
+            {text: 'Wildberries', value: 'wildberries'},
+            {text: 'InSales', value: 'insales'},
+            {text: 'Ozon', value: 'ozon'},
+        ]
+    },
+    getters: {
+        sources(state) {
+            let sources = [{text: '1C', value: null}];
+            let keys = state.list;
+            if (keys) {
+                for (let key of state.list) {
+                    sources.push({text: key.title, value: key.id});
+                }
+            }
+
+            return sources;
+        },
+        sourceTitle(state, getters) {
+            return (searchValue) => {
+                if (typeof (searchValue) === 'undefined') {
+                    searchValue = null;
+                }
+
+                let source = getters.sources.find(source => source.value === searchValue);
+                return source ? source.text : null;
+            }
+        },
+        typeTitle(state) {
+            return (searchType) => {
+                if (searchType === '1c') {
+                    return 'Файл';
+                }
+
+                let type = state.types.find(type => type.value === searchType);
+                if (type) {
+                    return type.text;
+                }
+
+                return '';
+            }
+        }
+    }
 });

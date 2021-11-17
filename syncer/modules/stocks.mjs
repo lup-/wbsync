@@ -50,17 +50,22 @@ function prepareProducts(products) {
         dstProduct.id = getId(dstProduct);
         dstProduct.created = moment().unix();
         dstProduct.updated = moment().unix();
+        dstProduct.raw = srcProduct;
 
         return dstProduct;
     });
 }
 
 async function downloadStocksForKey(db, key, debug) {
+    let results = false;
+    let count = 0;
     if (key.type === 'insales') {
         debug('Syncing Insales %s', key.title);
         let insales = new InSales(key.insales_api_id, key.insales_api_password, key.api_base);
         let insalesStocks = await insales.fetchStocksForDb(key);
-        return await syncCollectionItems(
+        count = insalesStocks.length;
+
+        results = await syncCollectionItems(
             db,
             insalesStocks,
             'stock',
@@ -75,7 +80,9 @@ async function downloadStocksForKey(db, key, debug) {
         debug('Syncing Wildberries %s', key.title);
         let wb = new Wildberries(key.wb_64bit, key.wb_new);
         let wbStocks = await wb.fetchStocksForDb(key);
-        return await syncCollectionItems(
+        count = wbStocks.length;
+
+        results = await syncCollectionItems(
             db,
             wbStocks,
             'stock',
@@ -90,7 +97,9 @@ async function downloadStocksForKey(db, key, debug) {
         debug('Syncing Ozon %s', key.title);
         let ozon = new Ozon(key.client_id, key.api_key);
         let ozonStocks = await ozon.fetchStocksForDb(key);
-        return await syncCollectionItems(
+        count = ozonStocks.length;
+
+        results = await syncCollectionItems(
             db,
             ozonStocks,
             'stock',
@@ -100,6 +109,17 @@ async function downloadStocksForKey(db, key, debug) {
             {source: 'ozon', keyId: key.id}
         );
     }
+
+    await db.collection('log').insertOne({
+        type: 'downloadStocks',
+        date: moment().unix(),
+        from: key.type,
+        key,
+        isSuccess: results ? results.isSuccess : false,
+        newItems: results ? results.newItems : false,
+        updatedItems: results ? results.updatedItems : false,
+        count
+    });
 }
 
 async function downloadAllStocks(debug, jsonPath) {
@@ -107,11 +127,16 @@ async function downloadAllStocks(debug, jsonPath) {
     debug('Reading file %s', jsonPath);
     let rawData = fs.readFileSync(jsonPath);
     let products = JSON.parse(rawData);
+
+    let fileFd = fs.openSync(jsonPath, 'r');
+    let stat = fs.fstatSync(fileFd);
+    fs.closeSync(fileFd);
+
     let preparedProducts = prepareProducts(products);
 
     debug('Sync 1C %s stocks with db...', products.length);
     let db = await getDb();
-    await syncCollectionItems(
+    let {isSuccess, newItems, updatedItems} = await syncCollectionItems(
         db,
         preparedProducts,
         'stock',
@@ -120,6 +145,18 @@ async function downloadAllStocks(debug, jsonPath) {
         null,
         {source: '1c'}
     );
+
+    await db.collection('log').insertOne({
+        type: 'downloadStocks',
+        date: moment().unix(),
+        from: '1c',
+        path: jsonPath,
+        stat,
+        isSuccess,
+        newItems,
+        updatedItems,
+        count: products.length
+    });
 
     debug('Sync stocks with db...', products.length);
     let keys = await db.collection('keys').find({deleted: {$in: [null, false]}}).toArray();

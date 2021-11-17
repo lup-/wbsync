@@ -14,6 +14,7 @@
                     show-group-by
                     item-key="_id"
                     locale="ru"
+                    :footer-props="{'items-per-page-options': [15, 50, 100, 500, -1]}"
                 >
                     <template v-slot:top>
                         <filter-field v-model="filter" :fields="filterFields" label="Фильтр" outlined class="mb-6" @save="saveFilter"></filter-field>
@@ -79,7 +80,6 @@
             this.initFilter();
         },
         async mounted() {
-            await this.loadKeys();
             await this.loadEnums();
             await this.loadItems();
         },
@@ -126,11 +126,6 @@
                 let offset = (page-1)*limit;
 
                 await this.$store.dispatch('order/loadItems', {filter: this.filter, sort, limit, offset});
-                this.loading = false;
-            },
-            async loadKeys() {
-                this.loading = true;
-                await this.$store.dispatch('key/loadItems');
                 this.loading = false;
             },
             async loadEnums() {

@@ -33,11 +33,6 @@ export default {
     data() {
         return {
             item: this.value || {},
-            types: [
-                {text: 'Wildberries', value: 'wildberries'},
-                {text: 'InSales', value: 'insales'},
-                {text: 'Ozon', value: 'ozon'},
-            ],
             defaultItem: {}
         }
     },
@@ -58,6 +53,9 @@ export default {
     methods: {
     },
     computed: {
+        types() {
+            return this.$store.state.key.types;
+        }
     }
 }
 </script>

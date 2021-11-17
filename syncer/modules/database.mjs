@@ -117,7 +117,7 @@ async function syncCollectionItems(db, receivedItems, collectionName, idFieldNam
         }
     }
 
-    return isSuccess;
+    return {isSuccess, newItems: newItems.length, updatedItems: updatedItems.length};
 }
 
 export {getDb, getClient, syncCollectionItems};

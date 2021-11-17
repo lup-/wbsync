@@ -36,12 +36,24 @@ module.exports = {
         let db = await getDb();
 
         let lastUpload = await db.collection('log').find({type: 'uploadStocks'}).sort({date: -1}).limit(1).toArray();
-        let lastDownload = await db.collection('log').find({type: 'downloadAllStocks'}).sort({date: -1}).limit(1).toArray();
+        let lastDownloadAll = await db.collection('log').find({type: 'downloadAllStocks'}).sort({date: -1}).limit(1).toArray();
         let lastSync = await db.collection('log').find({type: 'syncAllOrders'}).sort({date: -1}).limit(1).toArray();
+        let lastSingleDownloads = await db.collection('log').aggregate([
+            {$match: {type: 'downloadStocks'}},
+            {$sort: {date: -1}},
+            {$group: {
+                    _id: {type: "$type", key: "$key"},
+                    logs: {$push: "$$ROOT"}
+                }},
+            {$addFields: {log: {$arrayElemAt: [ "$logs", 0 ]}}},
+            {$replaceRoot: {newRoot: '$log'}},
+            {$sort: {date: 1}}
+        ]).toArray();
 
         ctx.body = {
             upload: lastUpload[0],
-            download: lastDownload[0],
+            downloadAll: lastDownloadAll[0],
+            download: lastSingleDownloads,
             sync: lastSync[0]
         }
     }

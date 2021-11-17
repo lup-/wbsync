@@ -17,7 +17,22 @@ function lineToCsv(items) {
 }
 
 function stockToCsv(item, fields) {
-    let fieldValues = fields.map(field => item[field] || '');
+    let fieldValues = fields.map(field => {
+        let value = item[field];
+        if (field.indexOf('.') !== -1 && typeof (value) === 'undefined') {
+            let path = field.split('.');
+            value = item;
+            for (let step of path) {
+                value = value[step];
+            }
+        }
+
+        if (value instanceof Array) {
+            value = value.join(', ');
+        }
+
+        return value || ''
+    });
     return lineToCsv(fieldValues);
 }
 
@@ -30,6 +45,10 @@ function prepareItemsForFrontend(items, variants, compareField, filter) {
 
         if (item.barcode) {
             compareItem.barcode = item.barcode;
+        }
+
+        if (item.barcodeOrSku) {
+            compareItem.barcodeOrSku = item.barcodeOrSku;
         }
 
         let allValuesEqual = true;
@@ -87,6 +106,25 @@ function prepareItemsForFrontend(items, variants, compareField, filter) {
     });
 }
 
+function uniqueValuesOrSingleValue(items, field) {
+    let fieldValues = items
+        .map(item => item[field])
+        .filter(value => Boolean(value));
+
+    let uniqueValues = fieldValues
+        .filter((value, index, array) => array.indexOf(value) === index);
+
+    if (uniqueValues.length === 0) {
+        return null;
+    }
+
+    if (uniqueValues.length === 1) {
+        return uniqueValues[0];
+    }
+
+    return uniqueValues;
+}
+
 module.exports = {
     async list(ctx) {
         let inputFilter = ctx.request.body && ctx.request.body.filter
@@ -98,6 +136,7 @@ module.exports = {
 
         let limit = ctx.request.body.limit ? parseInt(ctx.request.body.limit) : null;
         let offset = ctx.request.body.offset ? parseInt(ctx.request.body.offset) : 0;
+        let downloadAsCsv = ctx.request.body.downloadAsCsv || false;
 
         let defaultFilter = {
             'deleted': {$in: [null, false]}
@@ -133,24 +172,60 @@ module.exports = {
         let db = await getDb();
         let cursor = db.collection(COLLECTION_NAME)
             .find(filter)
-            .sort(sort)
-            .skip(offset);
+            .sort(sort);
 
-        if (limit !== -1) {
-            cursor = cursor.limit(limit);
+        if (!downloadAsCsv) {
+            cursor = cursor.skip(offset);
+            if (limit !== -1) {
+                cursor = cursor.limit(limit);
+            }
         }
 
         let items = await cursor.toArray();
 
-        let totalCount = await db.collection(COLLECTION_NAME).countDocuments(filter);
+        if (downloadAsCsv) {
+            let jsonFields = [
+                {text: 'Источник', value: 'source'},
+                {text: 'Название', value: 'title'},
+                {text: 'Цвет', value: 'color'},
+                {text: 'Размер RU', value: 'size.ru'},
+                {text: 'Размер DE', value: 'size.de'},
+                {text: 'Артикул', value: 'sku'},
+                {text: 'Штрих-код', value: 'barcode'},
+                {text: 'Количество', value: 'quantity'},
+                {text: 'Цена', value: 'price'},
+            ];
 
-        let response = {};
-        response[ITEMS_NAME] = items;
-        response['totalCount'] = totalCount;
+            let header = jsonFields.map(item => item.text);
+            let fieldCodes = jsonFields.map(item => item.value);
 
-        ctx.body = response;
+            let csvLines = [];
+            csvLines.push(lineToCsv(header));
+
+            let stockLines = items.map(stockItem => stockToCsv(stockItem, fieldCodes))
+            csvLines = csvLines.concat(stockLines);
+
+            let csv = csvLines.join('\n');
+
+            ctx.attachment(`stocks_${moment().unix()}.csv`);
+            ctx.statusCode = 200;
+            ctx.type = 'text/csv';
+            ctx.body = iconv.encode(csv, 'windows-1251');
+        }
+        else {
+            let totalCount = await db.collection(COLLECTION_NAME).countDocuments(filter);
+
+            let response = {};
+            response[ITEMS_NAME] = items;
+            response['totalCount'] = totalCount;
+
+            ctx.body = response;
+        }
     },
     async match(ctx) {
+        ctx.request.socket.setTimeout(5 * 60 * 1000);
+        ctx.req.setTimeout(5 * 60 * 1000);
+
         let inputFilter = ctx.request.body && ctx.request.body.filter
             ? ctx.request.body.filter || {}
             : {};
@@ -159,11 +234,23 @@ module.exports = {
             : {};
 
         let limit = ctx.request.body.limit ? parseInt(ctx.request.body.limit) : null;
+        let inputLimit = limit;
         let offset = ctx.request.body.offset ? parseInt(ctx.request.body.offset) : 0;
-        let onlyMatched = ctx.request.body.onlyMatched ? Boolean(ctx.request.body.onlyMatched) : true;
+        let inputOffset = offset;
+        let onlyMatched = typeof (ctx.request.body.onlyMatched) !== 'undefined'
+            ? Boolean(ctx.request.body.onlyMatched)
+            : true;
+        let onlyUnequal = typeof (ctx.request.body.onlyUnequal) !== 'undefined'
+            ? Boolean(ctx.request.body.onlyUnequal)
+            : true;
         let matchField = ctx.request.body.matchField || 'barcode';
         let compareField = ctx.request.body.compareField || 'quantity';
         let downloadAsCsv = ctx.request.body.downloadAsCsv || false;
+
+        if (onlyUnequal) {
+            limit = -1;
+            offset = 0;
+        }
 
         let inputOrderFilter = {};
         let hasOrdersFilter = false;
@@ -239,12 +326,25 @@ module.exports = {
         }
 
         let notEmptyMatchFieldFilter = {};
-        notEmptyMatchFieldFilter[matchField] = {$nin: [null, false, '']};
+        if (matchField === 'barcodeOrSku') {
+            notEmptyMatchFieldFilter = {
+                $or: [
+                    {barcode: {$nin: [null, false, ""]}},
+                    {sku: {$nin: [null, false, ""]}}
+                ]
+            }
+        }
+        else {
+            notEmptyMatchFieldFilter[matchField] = {$nin: [null, false, '']};
+        }
 
         let pipeline = [
             { $match: notEmptyMatchFieldFilter },
             { $match: filter },
             { $match: barcodeFilter },
+            { $addFields: {
+                barcodeOrSku: {$cond: {if: {$in: ["$barcode", ["", null, false]]}, then: "$sku", else: "$barcode"}}
+            } },
             { $group: {"_id": `$${matchField}`, "stocks": {$addToSet: "$$ROOT"}} },
         ];
 
@@ -257,7 +357,7 @@ module.exports = {
         }
 
         let cursor = db.collection(COLLECTION_NAME)
-            .aggregate(pipeline);
+            .aggregate(pipeline, { allowDiskUse: true });
 
         if (!downloadAsCsv) {
             cursor = cursor.skip(offset);
@@ -306,8 +406,13 @@ module.exports = {
         });
 
         let compareItems = items.map(item => {
-            let compareItem = {id: item._id};
-            compareItem[matchField] = item._id;
+            let compareItem = {
+                id: item._id,
+                barcode: uniqueValuesOrSingleValue(item.stocks, 'barcode'),
+                sku: uniqueValuesOrSingleValue(item.stocks, 'sku'),
+                barcodeOrSku: uniqueValuesOrSingleValue(item.stocks, 'barcodeOrSku'),
+            };
+
             compareItem.todaySum = 0;
             for (let keySource of uniqueKeySources) {
                 let stocks = item.stocks.filter(stock => {
@@ -335,10 +440,15 @@ module.exports = {
         pipeline = pipeline.filter(stage => ['$skip', '$limit'].indexOf(Object.keys(stage)[0]) === -1)
         pipeline.push({ $count: 'totalDocuments' });
 
-        let countItem = await db.collection(COLLECTION_NAME).aggregate(pipeline).toArray();
+        let countItem = await db.collection(COLLECTION_NAME).aggregate(pipeline, { allowDiskUse: true }).toArray();
         let totalCount = countItem && countItem[0] ? countItem[0].totalDocuments : 0;
 
         let frontendItems = prepareItemsForFrontend(compareItems, uniqueKeySources, compareField, filter);
+        if (onlyUnequal) {
+            frontendItems = frontendItems.filter(item => item.allValuesEqual === false && item.allValuesZero === false);
+            totalCount = frontendItems.length;
+            frontendItems = frontendItems.splice(inputOffset, inputLimit);
+        }
 
         if (downloadAsCsv) {
             let defaultFilter = {
@@ -354,9 +464,9 @@ module.exports = {
                 return aggr;
             }, {});
 
-            let matchBySku = filter && filter.matchField === 'sku';
             let jsonFields = [
-                {text: matchBySku ? 'Артикул' : 'Штрих-код', value: matchBySku ? 'sku' : 'barcode'},
+                {text: 'Штрих-код', value: 'barcode'},
+                {text: 'Артикул', value: 'sku'},
                 {text: 'Название', value: 'title'},
                 {text: 'Сколько в заказах', value: 'todaySum', sortable: false}
             ];
@@ -379,7 +489,7 @@ module.exports = {
 
             let csv = csvLines.join('\n');
 
-            ctx.attachment(`stocks_${moment().unix()}.csv`);
+            ctx.attachment(`compare_${moment().unix()}.csv`);
             ctx.statusCode = 200;
             ctx.type = 'text/csv';
             ctx.body = iconv.encode(csv, 'windows-1251');

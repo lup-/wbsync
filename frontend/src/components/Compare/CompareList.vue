@@ -16,9 +16,16 @@
                     selectable-key="barcode"
                     item-key="barcode"
                     locale="ru"
+                    :footer-props="{'items-per-page-options': [15, 50, 100, 500, -1]}"
                 >
                     <template v-slot:top>
                         <filter-field v-model="filter" :fields="filterFields" label="Фильтр" outlined class="mb-6" @save="saveFilter"></filter-field>
+                    </template>
+                    <template v-slot:item.barcode="{item}">
+                        {{(item.barcode instanceof Array) ? item.barcode.join(', ') : item.barcode}}
+                    </template>
+                    <template v-slot:item.sku="{item}">
+                        {{(item.sku instanceof Array) ? item.sku.join(', ') : item.sku}}
                     </template>
                     <template v-slot:item.title="{item}">
                         <div>{{item.title}}</div>
@@ -40,7 +47,7 @@
                             </template>
                         </upload-stocks-dialog>
                         <v-btn color="secondary"
-                            :loading="loading"
+                            :loading="downloading"
                             outlined
                             class="ml-2"
                             @click="downloadCsv"
@@ -61,6 +68,7 @@
         components: {FilterField, UploadStocksDialog},
         data() {
             let matchFields = [
+                {text: 'Штрихкод или артикул', value: 'barcodeOrSku'},
                 {text: 'Штрихкод', value: 'barcode'},
                 {text: 'Артикул', value: 'sku'}
             ];
@@ -92,7 +100,7 @@
                 deep: true,
                 async handler() {
                     if (this.filter.onlyUnequal) {
-                        this.options.itemsPerPage = -1;
+                        //this.options.itemsPerPage = -1;
                         this.options.page = 1;
                     }
 
@@ -121,7 +129,6 @@
             this.initOrdersFilter();
         },
         async mounted () {
-            await this.loadKeys();
             await this.loadOrderEnums();
             return this.loadItems();
         },
@@ -149,11 +156,6 @@
             saveFilter() {
                 localStorage.setItem('savedCompareFilter', JSON.stringify(this.filter));
                 this.$store.commit('setSuccessMessage', 'Фильтр сохранен!');
-            },
-            async loadKeys() {
-                this.loading = true;
-                await this.$store.dispatch('key/loadItems');
-                this.loading = false;
             },
             downloadCsv() {
                 return this.loadItems(true);
@@ -199,7 +201,8 @@
                 let params = {
                     downloadAsCsv,
                     matchField: this.matchField,
-                    onlyMatched: Boolean(this.filter.onlyMatched)
+                    onlyMatched: Boolean(this.filter.onlyMatched),
+                    onlyUnequal: this.filter.onlyUnequal,
                 };
 
                 await this.$store.dispatch('stock/loadCompareItems', {filter, sort, limit, offset, params});
@@ -252,10 +255,9 @@
                 }, {});
             },
             headers() {
-                let matchBySku = this.filter && this.filter.matchField === 'sku';
-
                 let baseHeaders = [
-                    {text: matchBySku ? 'Артикул' : 'Штрих-код', value: matchBySku ? 'sku' : 'barcode'},
+                    {text: 'Штрих-код', value: 'barcode'},
+                    {text: 'Артикул', value: 'sku'},
                     {text: 'Название', value: 'title'},
                     {text: 'Сколько в заказах', value: 'todaySum', sortable: false}
                 ];
@@ -269,22 +271,12 @@
                 return baseHeaders.concat(compareHeaders);
             },
             items() {
-                let items = this.loading
+                return this.loading
                     ? []
                     : this.$store.state.stock.compare || [];
-
-                let compareItems = items;
-
-                if (this.onlyUnequal) {
-                    compareItems = compareItems.filter(item => item.allValuesEqual === false && item.allValuesZero === false);
-                }
-
-                return compareItems;
             },
             totalItems() {
-                return this.onlyUnequal || this.onlyToday
-                    ? this.items.length
-                    : this.$store.state.stock.compareCount || 0;
+                return this.$store.state.stock.compareCount || 0;
             },
             sourceTypes() {
                 return this.$store.state.order.filterFieldEnums && this.$store.state.order.filterFieldEnums.source

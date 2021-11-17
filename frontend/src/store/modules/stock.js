@@ -52,6 +52,27 @@ export default new Crud({
         compareCount: 0,
     },
     actions: {
+        async loadItems({commit}, inputParams) {
+            let {filter = {}, limit = 15, offset = 0, sort = {}, params = {}} = {...inputParams};
+
+            if (!API_LIST_URL) {
+                return;
+            }
+
+            let download = params.downloadAsCsv || false;
+
+            if (download) {
+                let data = {filter, limit, offset, sort, ...params};
+                let response = await axios({url: API_LIST_URL, method: 'POST', data, responseType: 'blob'});
+                downloadFile(response.data, `stocks_${moment().unix()}.csv`);
+            }
+            else {
+                let response = await axios.post(API_LIST_URL, {filter, limit, offset, sort});
+                await commit('setParams', {filter, limit, offset, sort});
+                await commit('setTotalCount', response.data['totalCount']);
+                return commit('setItems', response.data[NAME_ITEMS]);
+            }
+        },
         async loadCompareItems({commit}, inputParams) {
             let {filter = {}, limit = 15, offset = 0, sort = {}, params = {}} = {...inputParams};
 
@@ -64,7 +85,7 @@ export default new Crud({
             if (download) {
                 let data = {filter, limit, offset, sort, ...params};
                 let response = await axios({url: '/api/stock/match', method: 'POST', data, responseType: 'blob'});
-                downloadFile(response.data, `stocks_${moment().unix()}.csv`);
+                downloadFile(response.data, `compare_${moment().unix()}.csv`);
             }
             else {
                 let response = await axios.post('/api/stock/match', {filter, limit, offset, sort, ...params});

@@ -13,16 +13,37 @@
                     multi-sort
                     item-key="_id"
                     locale="ru"
+                    :footer-props="{'items-per-page-options': [15, 50, 100, 500, -1]}"
                 >
                     <template v-slot:top>
                         <filter-field v-model="filter" :fields="filterFields" label="Фильтр" outlined class="mb-6" @save="saveFilter"></filter-field>
                     </template>
                     <template v-slot:item.size="{ item }">
-                        {{[item.size.ru, item.size.de].filter(size => Boolean(size)).join('/')}}
+                        {{[item.size.ru, item.size.de, item.size.any].filter(size => Boolean(size)).join('/')}}
                     </template>
                     <template v-slot:item.keyId="{item}">
                         {{sourceTitle(item.keyId)}}
                     </template>
+                    <template v-slot:item.price="{item}">
+                        {{item.price ? item.price / 100 : ''}}
+                    </template>
+                    <template v-slot:item.actions="{item}">
+                        <raw-data-dialog v-model="rawDataDialogs[item.id]" :raw="item.raw" :order-id="item.id">
+                            <template v-slot:activator="{ on, attrs }">
+                                <v-btn icon small v-bind="attrs" v-on="on"><v-icon>mdi-bug</v-icon></v-btn>
+                            </template>
+                        </raw-data-dialog>
+                    </template>
+
+                    <template v-slot:footer.prepend>
+                        <v-btn color="secondary"
+                            :loading="loading"
+                            outlined
+                            class="ml-2"
+                            @click="downloadCsv"
+                        ><v-icon>mdi-download</v-icon> CSV</v-btn>
+                    </template>
+
                 </v-data-table>
             </v-col>
         </v-row>
@@ -31,10 +52,11 @@
 
 <script>
     import FilterField from "../Filter/Filter"
+    import RawDataDialog from "@/components/Order/RawDataDialog";
     import clone from "lodash.clonedeep";
 
     export default {
-        components: {FilterField},
+        components: {FilterField, RawDataDialog},
         data() {
             return {
                 defaultItem: {},
@@ -45,10 +67,12 @@
                 deleteDialog: false,
 
                 loading: false,
+                downloading: false,
                 unsaved: false,
                 options: {},
 
                 filter: {},
+                rawDataDialogs: {},
 
                 headers: [
                   {text: 'Источник', value: 'keyId'},
@@ -59,7 +83,7 @@
                   {text: 'Штрих-код', value: 'barcode'},
                   {text: 'Кол-во', value: 'quantity'},
                   {text: 'Цена', value: 'price'},
-                  //{text: 'Действия', value: 'actions', sortable: false, width: '20%'},
+                  {text: 'Действия', value: 'actions', sortable: false, width: '5%'},
                 ],
             }
         },
@@ -81,7 +105,6 @@
             this.initFilter();
         },
         async mounted () {
-            await this.loadKeys();
             this.loadItems();
         },
         methods: {
@@ -99,16 +122,17 @@
                 localStorage.setItem('savedStockFilter', JSON.stringify(this.filter));
                 this.$store.commit('setSuccessMessage', 'Фильтр сохранен!');
             },
-            async loadKeys() {
-                this.loading = true;
-                await this.$store.dispatch('key/loadItems');
-                this.loading = false;
-            },
             downloadCsv() {
                 return this.loadItems(true);
             },
             async loadItems(downloadAsCsv = false) {
-                this.loading = true;
+                if (downloadAsCsv) {
+                    this.downloading = true;
+                }
+                else {
+                    this.loading = true;
+                }
+
                 let sort = this.options.sortBy && this.options.sortBy.length > 0
                     ? this.options.sortBy.reduce((sortFields, fieldId, index) => {
                         let isDesc = this.options.sortDesc[index];
@@ -130,7 +154,12 @@
 
                 let params = {downloadAsCsv};
                 await this.$store.dispatch('stock/loadItems', {filter, sort, limit, offset, params});
-                this.loading = false;
+                if (downloadAsCsv) {
+                    this.downloading = false;
+                }
+                else {
+                    this.loading = false;
+                }
             },
             deleteItem(item) {
                 this.$store.dispatch('stock/deleteItem', item);
@@ -159,12 +188,7 @@
                 return this.loadItems();
             },
             sourceTitle(searchValue) {
-                if (typeof (searchValue) === 'undefined') {
-                    searchValue = null;
-                }
-
-                let source = this.sources.find(source => source.value === searchValue);
-                return source ? source.text : null;
+                return this.$store.getters['key/sourceTitle'](searchValue);
             }
         },
         computed: {
@@ -180,15 +204,7 @@
                 return this.$store.state.stock.totalCount;
             },
             sources() {
-                let sources = [{text: '1C', value: null}];
-                let keys = this.$store.state.key.list;
-                if (keys) {
-                    for (let key of this.$store.state.key.list) {
-                        sources.push({text: key.title, value: key.id});
-                    }
-                }
-
-                return sources;
+                return this.$store.getters["key/sources"];
             },
             filterFields() {
                 return [

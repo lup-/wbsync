@@ -62,7 +62,6 @@ export default {
         }
     },
     mounted() {
-        this.loadKeys();
     },
     methods: {
         close() {
@@ -72,11 +71,6 @@ export default {
         ok() {
             this.showDialog = false;
             this.$emit('ok', this.fields);
-        },
-        async loadKeys() {
-            this.loading = true;
-            await this.$store.dispatch('key/loadItems');
-            this.loading = false;
         },
     },
     computed: {
