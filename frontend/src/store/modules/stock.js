@@ -50,49 +50,110 @@ export default new Crud({
         compareVariants: null,
         compareParams: null,
         compareCount: 0,
+        itemsCancel: [],
+        compareCancel: [],
     },
     actions: {
-        async loadItems({commit}, inputParams) {
+        async loadItems({commit, state}, inputParams) {
             let {filter = {}, limit = 15, offset = 0, sort = {}, params = {}} = {...inputParams};
 
             if (!API_LIST_URL) {
                 return;
             }
 
+            await commit('cancelRequests', 'itemsCancel');
+
+            const request = axios.CancelToken.source();
+            await commit('addCancelToken', {type: 'itemsCancel', request});
+
             let download = params.downloadAsCsv || false;
 
             if (download) {
                 let data = {filter, limit, offset, sort, ...params};
-                let response = await axios({url: API_LIST_URL, method: 'POST', data, responseType: 'blob'});
-                downloadFile(response.data, `stocks_${moment().unix()}.csv`);
+                try {
+                    let response = await axios({
+                        url: API_LIST_URL,
+                        method: 'POST',
+                        data,
+                        responseType: 'blob',
+                        cancelToken: request.token
+                    });
+
+                    downloadFile(response.data, `stocks_${moment().unix()}.csv`);
+                }
+                catch (e) {
+                    if (e.constructor.name !== 'Cancel') {
+                        throw e;
+                    }
+                }
             }
             else {
-                let response = await axios.post(API_LIST_URL, {filter, limit, offset, sort});
-                await commit('setParams', {filter, limit, offset, sort});
-                await commit('setTotalCount', response.data['totalCount']);
-                return commit('setItems', response.data[NAME_ITEMS]);
+                try {
+                    let response = await axios.post(
+                        API_LIST_URL,
+                        {filter, limit, offset, sort},
+                        {cancelToken: request.token}
+                    );
+
+                    await commit('setParams', {filter, limit, offset, sort});
+                    await commit('setTotalCount', response.data['totalCount']);
+                    return commit('setItems', response.data[NAME_ITEMS]);
+                }
+                catch (e) {
+                    if (e.constructor.name !== 'Cancel') {
+                        throw e;
+                    }
+                }
             }
         },
-        async loadCompareItems({commit}, inputParams) {
+        async loadCompareItems({commit, state}, inputParams) {
             let {filter = {}, limit = 15, offset = 0, sort = {}, params = {}} = {...inputParams};
 
             if (!API_LIST_URL) {
                 return;
             }
 
+            await commit('cancelRequests', 'compareCancel');
+
+            const request = axios.CancelToken.source();
+            await commit('addCancelToken', {type: 'compareCancel', request});
             let download = params.downloadAsCsv || false;
 
             if (download) {
                 let data = {filter, limit, offset, sort, ...params};
-                let response = await axios({url: '/api/stock/match', method: 'POST', data, responseType: 'blob'});
-                downloadFile(response.data, `compare_${moment().unix()}.csv`);
+                try {
+                    let response = await axios({
+                        url: '/api/stock/match',
+                        method: 'POST',
+                        data,
+                        responseType: 'blob',
+                        cancelToken: request.token
+                    });
+                    downloadFile(response.data, `compare_${moment().unix()}.csv`);
+                }
+                catch (e) {
+                    if (e.constructor.name !== 'Cancel') {
+                        throw e;
+                    }
+                }
             }
             else {
-                let response = await axios.post('/api/stock/match', {filter, limit, offset, sort, ...params});
-                await commit('setCompareParams', {filter, limit, offset, sort});
-                await commit('setCompareTotalCount', response.data['totalCount']);
-                await commit('setCompareVariants', response.data['variants']);
-                await commit('setCompareItems', response.data['compare']);
+                try {
+                    let response = await axios.post(
+                        '/api/stock/match',
+                        {filter, limit, offset, sort, ...params},
+                        {cancelToken: request.token}
+                    );
+                    await commit('setCompareParams', {filter, limit, offset, sort});
+                    await commit('setCompareTotalCount', response.data['totalCount']);
+                    await commit('setCompareVariants', response.data['variants']);
+                    await commit('setCompareItems', response.data['compare']);
+                }
+                catch (e) {
+                    if (e.constructor.name !== 'Cancel') {
+                        throw e;
+                    }
+                }
             }
         },
     },
@@ -108,6 +169,16 @@ export default new Crud({
         },
         setCompareTotalCount(state, totalCount) {
             state.compareCount = totalCount;
+        },
+        cancelRequests(state, type) {
+            for (const request of state[type]) {
+                request.cancel();
+            }
+
+            state[type] = [];
+        },
+        addCancelToken(state, {type, request}) {
+            state[type].push(request);
         }
     }
 });
