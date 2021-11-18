@@ -448,6 +448,7 @@ module.exports = {
             frontendItems = frontendItems.filter(item => item.allValuesEqual === false && item.allValuesZero === false);
             totalCount = frontendItems.length;
             frontendItems = frontendItems.splice(inputOffset, inputLimit);
+            compareItems = compareItems.splice(inputOffset, inputLimit);
         }
 
         if (downloadAsCsv) {
