@@ -1,5 +1,5 @@
 <template>
-    <v-container class="fill-height align-start">
+    <v-container class="align-start">
         <v-row :align="isEmpty || isLoading ? 'center' : 'start'" :justify="isEmpty || isLoading ? 'center' : 'start'">
             <v-btn fab bottom right fixed large color="primary"
                     @click="$router.push({name: 'userNew'})"

@@ -10,7 +10,7 @@
                 <v-card-title>Последняя загрузка остатков</v-card-title>
                 <v-card-text>
                     <v-expansion-panels>
-                        <v-expansion-panel v-for="download in downloadDetails">
+                        <v-expansion-panel v-for="download in downloadDetails" :key="download._id">
                             <v-expansion-panel-header>
                                 <v-row>
                                     <v-col cols="12" md="6" class="d-flex flex-column">

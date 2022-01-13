@@ -6,6 +6,9 @@ import key from "./modules/key";
 import user from "./modules/user";
 import order from "./modules/order";
 import job from "@/store/modules/job";
+import productType from "@/store/modules/productType";
+import supplyType from "@/store/modules/supplyType";
+import supply from "@/store/modules/supply";
 
 Vue.use(Vuex);
 
@@ -16,6 +19,9 @@ export default new Vuex.Store({
         loading: false,
         routes: [
             {code: 'home', title: 'Панель управления', icon: 'mdi-home'},
+            {code: 'productTypeList', title: 'Типы товаров', icon: 'mdi-package-variant-closed'},
+            {code: 'supplyTypeList', title: 'Типы поставок', icon: 'mdi-swap-vertical'},
+            {code: 'supplyList', title: 'Поставки', icon: 'mdi-truck'},
             {code: 'stockList', title: 'Остатки', icon: 'mdi-tshirt-v'},
             {code: 'compareList', title: 'Сравнение остатков', icon: 'mdi-compare'},
             {code: 'orderList', title: 'Заказы', icon: 'mdi-cart'},
@@ -51,6 +57,9 @@ export default new Vuex.Store({
         user,
         key,
         order,
-        job
+        job,
+        productType,
+        supplyType,
+        supply
     }
 })

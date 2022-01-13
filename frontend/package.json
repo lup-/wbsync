@@ -11,7 +11,9 @@
   "dependencies": {
     "@mdi/js": "^5.9.55",
     "axios": "^0.21.0",
+    "buffer": "^4.9.2",
     "core-js": "^3.6.5",
+    "iconv-lite": "^0.4.24",
     "lodash.clonedeep": "^4.5.0",
     "lodash.merge": "^4.6.2",
     "moment": "^2.29.1",

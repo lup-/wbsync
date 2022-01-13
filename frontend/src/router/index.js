@@ -9,6 +9,9 @@ import CompareList from "@/components/Compare/CompareList";
 import KeyList from "../components/Key/KeyList";
 import UsersList from "../components/Users/List";
 import UserEdit from "../components/Users/Edit";
+import ProductTypeList from "@/components/ProductType/ProductTypeList";
+import SupplyTypeList from "@/components/SupplyType/SupplyTypeList";
+import SupplyList from "@/components/Supply/SupplyList";
 
 import CompareHeader from "@/components/Compare/CompareHeader";
 import OrderHeader from "@/components/Order/OrderHeader";
@@ -24,6 +27,9 @@ const routes = [
     { name: 'compareList', path: '/compare/', components: {content: CompareList, header: CompareHeader}, meta: {requiresAuth: true, group: 'compareList'} },
     { name: 'orderList', path: '/order/', components: {content: OrderList, header: OrderHeader}, meta: {requiresAuth: true, group: 'orderList'} },
     { name: 'keyList', path: '/key/', components: {content: KeyList}, meta: {requiresAuth: true, group: 'keyList'} },
+    { name: 'productTypeList', path: '/productType/', components: {content: ProductTypeList}, meta: {requiresAuth: true, group: 'productTypeList'} },
+    { name: 'supplyTypeList', path: '/supplyType/', components: {content: SupplyTypeList}, meta: {requiresAuth: true, group: 'supplyTypeList'} },
+    { name: 'supplyList', path: '/supply/', components: {content: SupplyList}, meta: {requiresAuth: true, group: 'supplyList'} },
     { name: 'usersList', path: '/users/', components: {content: UsersList}, meta: {requiresAuth: true, group: 'usersList'} },
     { name: 'userNew', path: '/user/new', components: {content: UserEdit}, meta: {requiresAuth: true, group: 'usersList'} },
     { name: 'userEdit', path: '/user/:id', components: {content: UserEdit}, meta: {requiresAuth: true, group: 'usersList'} },

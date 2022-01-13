@@ -1,5 +1,6 @@
 <template>
-    <v-container class="fill-height align-start">
+    <v-container class="align-start">
+        <h2 class="mb-4 text--secondary">Источники данных</h2>
         <v-row align="start" justify="start">
             <v-col cols="12">
                 <v-data-table

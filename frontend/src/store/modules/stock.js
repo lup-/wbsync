@@ -54,7 +54,7 @@ export default new Crud({
         compareCancel: [],
     },
     actions: {
-        async loadItems({commit, state}, inputParams) {
+        async loadItems({commit}, inputParams) {
             let {filter = {}, limit = 15, offset = 0, sort = {}, params = {}} = {...inputParams};
 
             if (!API_LIST_URL) {
@@ -106,7 +106,7 @@ export default new Crud({
                 }
             }
         },
-        async loadCompareItems({commit, state}, inputParams) {
+        async loadCompareItems({commit}, inputParams) {
             let {filter = {}, limit = 15, offset = 0, sort = {}, params = {}} = {...inputParams};
 
             if (!API_LIST_URL) {

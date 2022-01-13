@@ -239,10 +239,10 @@ module.exports = {
         let inputOffset = offset;
         let onlyMatched = typeof (ctx.request.body.onlyMatched) !== 'undefined'
             ? Boolean(ctx.request.body.onlyMatched)
-            : true;
+            : false;
         let onlyUnequal = typeof (ctx.request.body.onlyUnequal) !== 'undefined'
             ? Boolean(ctx.request.body.onlyUnequal)
-            : true;
+            : false;
         let matchField = ctx.request.body.matchField || 'barcode';
         let compareField = ctx.request.body.compareField || 'quantity';
         let downloadAsCsv = ctx.request.body.downloadAsCsv || false;
@@ -345,6 +345,9 @@ module.exports = {
             { $addFields: {
                 barcodeOrSku: {$cond: {if: {$in: ["$barcode", ["", null, false]]}, then: "$sku", else: "$barcode"}}
             } },
+            {
+              $project: {raw: 0}
+            },
             { $group: {"_id": `$${matchField}`, "stocks": {$addToSet: "$$ROOT"}} },
         ];
 
@@ -437,11 +440,14 @@ module.exports = {
             return compareItem;
         });
 
-        pipeline = pipeline.filter(stage => ['$skip', '$limit'].indexOf(Object.keys(stage)[0]) === -1)
-        pipeline.push({ $count: 'totalDocuments' });
+        let totalCount = items.length;
+        if (limit !== -1) {
+            pipeline = pipeline.filter(stage => ['$skip', '$limit'].indexOf(Object.keys(stage)[0]) === -1)
+            pipeline.push({$count: 'totalDocuments'});
 
-        let countItem = await db.collection(COLLECTION_NAME).aggregate(pipeline, { allowDiskUse: true }).toArray();
-        let totalCount = countItem && countItem[0] ? countItem[0].totalDocuments : 0;
+            let countItem = await db.collection(COLLECTION_NAME).aggregate(pipeline, {allowDiskUse: true}).toArray();
+            totalCount = countItem && countItem[0] ? countItem[0].totalDocuments : 0;
+        }
 
         let frontendItems = prepareItemsForFrontend(compareItems, uniqueKeySources, compareField, filter);
         if (onlyUnequal) {
@@ -455,8 +461,6 @@ module.exports = {
             let defaultFilter = {
                 'deleted': {$in: [null, false]}
             };
-
-            let filter = Object.assign(defaultFilter, inputFilter);
 
             let db = await getDb();
             let keys = await db.collection('keys').find({'deleted': {$in: [null, false]}}).toArray();

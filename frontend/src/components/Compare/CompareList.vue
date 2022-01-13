@@ -1,5 +1,6 @@
 <template>
-    <v-container class="fill-height align-start">
+    <v-container class="align-start">
+        <h2 class="mb-4 text--secondary">Сравнение остатков</h2>
         <v-row align="start" justify="start">
             <v-col cols="12">
                 <v-data-table
@@ -289,8 +290,8 @@
                     {text: 'Сравнивать по', id: 'compareField', type: 'select', single: true, items: this.compareFields},
                     {text: 'Артикул', id: 'sku'},
                     {text: 'Штрихкод', id: 'barcode'},
-                    {text: 'Только в нескольких источниках', id: 'onlyMatched', type: 'flag'},
-                    {text: 'Только различия', id: 'onlyUnequal', type: 'flag'},
+                    {text: 'Товары только с совпадениями по нескольким источникам', id: 'onlyMatched', type: 'flag'},
+                    {text: 'Скрыть пустые и одинаковые остатки', id: 'onlyUnequal', type: 'flag'},
                     {text: 'Есть в заказах с даты', id: 'ordersDateFrom', type: 'date'},
                     {text: 'Использовать фильтр страницы заказов', id: 'useOrderFilter', type: 'flag'},
                 ];

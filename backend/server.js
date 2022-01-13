@@ -1,5 +1,6 @@
 const Koa = require('koa');
 const Router = require('@koa/router');
+const multer = require('@koa/multer');
 const bodyParser = require('koa-bodyparser');
 
 const stock = require('./routes/stock');
@@ -7,12 +8,35 @@ const order = require('./routes/order');
 const key = require('./routes/key');
 const users = require('./routes/users');
 const job = require('./routes/job');
+const productType = require('./routes/productType');
+const supplyType = require('./routes/supplyType');
+const supply = require('./routes/supply');
 
 const PORT = 3000;
 const HOST = '0.0.0.0';
 
 const app = new Koa();
 const router = new Router();
+const upload = multer();
+
+router
+    .post('/api/productType/list', productType.list.bind(productType))
+    .post('/api/productType/add', productType.add.bind(productType))
+    .post('/api/productType/update', productType.update.bind(productType))
+    .post('/api/productType/delete', productType.delete.bind(productType));
+
+router
+    .post('/api/supplyType/list', supplyType.list.bind(supplyType))
+    .post('/api/supplyType/add', supplyType.add.bind(supplyType))
+    .post('/api/supplyType/update', supplyType.update.bind(supplyType))
+    .post('/api/supplyType/delete', supplyType.delete.bind(supplyType));
+
+router
+    .post('/api/supply/list', supply.list.bind(supply))
+    .post('/api/supply/listProducts', supply.listProducts.bind(supply))
+    .post('/api/supply/add', upload.single('file'), supply.add.bind(supply))
+    .post('/api/supply/update', upload.single('file'), supply.update.bind(supply))
+    .post('/api/supply/delete', supply.delete.bind(supply));
 
 router
     .post('/api/stock/list', stock.list.bind(stock))

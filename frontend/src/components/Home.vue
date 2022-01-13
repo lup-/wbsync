@@ -13,7 +13,10 @@
             <v-col cols="12" md="4" v-if="download">
                 <v-card>
                     <v-card-title>Обновление остатков</v-card-title>
-                    <v-card-subtitle>Последняя: {{formatDate(download.date)}}</v-card-subtitle>
+                    <v-card-subtitle v-for="item in download" :key="item._id" class="py-1">
+                        <span v-if="item.from === '1c'">1C: {{formatDate(item.stat.mtimeMs/1000)}}</span>
+                        <span v-else>{{sourceTitle(item.key ? item.key.id : null)}}: {{formatDate(item.date)}}</span>
+                    </v-card-subtitle>
                     <v-card-actions>
                         <v-btn color="primary" @click="downloadStocks" :loading="downloadActive">Обновить</v-btn>
                     </v-card-actions>
@@ -52,6 +55,9 @@
         methods: {
             formatDate(date) {
                 return moment.unix(date).format('DD.MM.YYYY, HH:mm')
+            },
+            sourceTitle(searchValue) {
+                return this.$store.getters['key/sourceTitle'](searchValue);
             },
             async loadLogs() {
                 let {data} = await axios.get('/api/job/last');
