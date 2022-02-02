@@ -11,6 +11,9 @@ const job = require('./routes/job');
 const productType = require('./routes/productType');
 const supplyType = require('./routes/supplyType');
 const supply = require('./routes/supply');
+const parse = require('./routes/parse');
+
+const {checkAndParseNewItems, setRepeatingTask} = require('./modules/Parser');
 
 const PORT = 3000;
 const HOST = '0.0.0.0';
@@ -18,6 +21,12 @@ const HOST = '0.0.0.0';
 const app = new Koa();
 const router = new Router();
 const upload = multer();
+
+router
+    .post('/api/parse/list', parse.list.bind(parse))
+    .post('/api/parse/add', parse.add.bind(parse))
+    .post('/api/parse/update', parse.update.bind(parse))
+    .post('/api/parse/delete', parse.delete.bind(parse));
 
 router
     .post('/api/productType/list', productType.list.bind(productType))
@@ -87,3 +96,5 @@ app
 let server = app.listen(PORT, HOST);
 server.setTimeout(5*60*1000);
 server.timeout=5*60*1000;
+
+setRepeatingTask(checkAndParseNewItems, 600);

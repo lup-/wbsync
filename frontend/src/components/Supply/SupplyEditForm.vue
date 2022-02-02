@@ -3,7 +3,7 @@
         <v-row>
             <v-col cols="12">
                 <v-text-field v-model="title" label="Название поставки"></v-text-field>
-                <v-select v-model="supplyTypeId" :items="supplyTypes" label="Тип поставки"></v-select>
+                <v-select v-model="supplyTypeId" :items="supplyTypes" label="Шаблон загрузки"></v-select>
                 <v-file-input
                     v-model="file"
                     label="Файл с товарами в поставке"

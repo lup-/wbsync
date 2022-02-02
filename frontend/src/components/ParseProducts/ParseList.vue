@@ -1,6 +1,6 @@
 <template>
     <v-container class="align-start">
-        <h2 class="mb-4 text--secondary">Шаблоны загрузок</h2>
+        <h2 class="mb-4 text--secondary">Наблюдения за ценами</h2>
         <v-row align="start" justify="start">
             <v-col cols="12">
                 <v-data-table
@@ -24,11 +24,11 @@
 
         <v-dialog
                 v-model="editDialog"
-                max-width="90%"
+                max-width="600px"
         >
             <v-card v-if="editedItem">
                 <v-card-title v-if="isNewEditing">
-                    Новый тип поставки
+                    Новое наблюдение
                     <v-spacer></v-spacer>
                     <v-btn icon @click="close"><v-icon>mdi-close</v-icon></v-btn>
                 </v-card-title>
@@ -38,7 +38,7 @@
                     <v-btn icon @click="close"><v-icon>mdi-close</v-icon></v-btn>
                 </v-card-title>
                 <v-card-text>
-                    <supply-type-edit-form v-model="editedItem"></supply-type-edit-form>
+                    <parse-edit-form v-model="editedItem"></parse-edit-form>
                 </v-card-text>
                 <v-card-actions>
                     <v-btn text @click="close">Отмена</v-btn>
@@ -52,10 +52,11 @@
 </template>
 
 <script>
-    import SupplyTypeEditForm from "@/components/SupplyType/SupplyTypeEditForm";
+    import ParseEditForm from "@/components/ParseProducts/ParseEditForm";
+    import moment from "moment";
 
     export default {
-        components: {SupplyTypeEditForm},
+        components: {ParseEditForm},
         data() {
             return {
                 defaultItem: {},
@@ -66,11 +67,6 @@
 
                 loading: false,
                 options: {},
-
-                headers: [
-                  {text: 'Название', value: 'title'},
-                  {text: 'Действия', value: 'actions', sortable: false, width: '20%'},
-                ],
             }
         },
         mounted () {
@@ -79,12 +75,11 @@
         methods: {
             async loadItems() {
                 this.loading = true;
-                await this.$store.dispatch('supplyType/loadItems');
-                await this.$store.dispatch('productType/loadItems');
+                await this.$store.dispatch('parse/loadItems');
                 this.loading = false;
             },
             deleteItem(item) {
-                this.$store.dispatch('supplyType/deleteItem', item);
+                this.$store.dispatch('parse/deleteItem', item);
             },
             editItem(item) {
                 this.editedItem = Object.assign({}, item);
@@ -102,22 +97,79 @@
 
             async save() {
                 if (this.editedItem !== null) {
-                    let saveAction = this.isNewEditing ? 'supplyType/newItem' : 'supplyType/saveItem';
+                    let saveAction = this.isNewEditing ? 'parse/newItem' : 'parse/saveItem';
                     await this.$store.dispatch(saveAction, this.editedItem);
                 }
 
                 this.close();
                 return this.loadItems();
             },
+
+            getAllLinkDomains(items) {
+                let domains = items
+                    .reduce((domains, item) => {
+                        let linkDomains = item.links.map(link => {
+                            let url = new URL(link);
+                            return url.hostname.toLowerCase();
+                        });
+
+                        domains = domains.concat(linkDomains);
+                        return domains;
+                    }, [])
+                    .filter((domain, index, allDomains) => allDomains.indexOf(domain) === index);
+
+                domains.sort();
+                return domains;
+            }
         },
         computed: {
             isNewEditing() {
                 return this.editedItem && !this.editedItem._id;
             },
+            headers() {
+                let baseHeaders = [
+                    {text: 'Название', value: 'title'},
+                    {text: 'Обновлено', value: 'lastParsedTime'},
+                ];
+
+                if (!this.loading) {
+                    let items = this.$store.state.parse.list;
+                    let domains = this.getAllLinkDomains(items);
+                    for (let domain of domains) {
+                        baseHeaders.push({text: domain, value: domain});
+                    }
+                }
+
+                baseHeaders.push({text: 'Действия', value: 'actions', sortable: false, width: '20%'});
+
+                return baseHeaders;
+            },
             items() {
-                return this.loading
-                    ? []
-                    : this.$store.state.supplyType.list;
+                if (this.loading) {
+                    return [];
+                }
+
+                let items = this.$store.state.parse.list;
+                let domains = this.getAllLinkDomains(items);
+
+                return items.map(item => {
+                    let domainPrices = item.lastParsed && item.lastParsed.products
+                        ? item.lastParsed.products.reduce((prices, product) => {
+                            prices[product.host] = product.price;
+                            return prices;
+                          }, {})
+                        : {};
+
+                    for (let domain of domains) {
+                        item[domain] = domainPrices[domain] || null;
+                    }
+
+                    item.lastParsedTime = item.lastParsed && item.lastParsed.parsed
+                        ? moment.unix(item.lastParsed.parsed).format('DD.MM.YYYY, HH:mm')
+                        : null;
+
+                    return item;
+                });
             },
             totalItems() {
                 return this.items.length;

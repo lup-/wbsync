@@ -1,6 +1,11 @@
 <template>
     <v-container class="fill-height align-start">
-        <v-row>
+        <v-row v-if="isParseUser">
+            <v-col cols="12">
+                Добро пожаловать!
+            </v-col>
+        </v-row>
+        <v-row v-else>
             <v-col cols="12" md="4" v-if="upload">
                 <v-card>
                     <v-card-title>Отправка остатков</v-card-title>
@@ -76,6 +81,11 @@
                 await this.$store.dispatch('job/syncOrders');
                 await this.loadLogs();
                 this.syncActive = false;
+            }
+        },
+        computed: {
+            isParseUser() {
+                return this.$store.getters.userHasRights('parse');
             }
         }
     }

@@ -17,6 +17,10 @@ export default {
         },
         userHasRights(state) {
             return (right) => {
+                if (right === 'parse') {
+                    return state.current.rights && state.current.rights.indexOf(right) !== -1;
+                }
+
                 return state.current && (
                     right === 'home' ||
                     state.current.isAdmin || (

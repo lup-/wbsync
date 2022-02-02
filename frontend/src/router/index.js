@@ -12,6 +12,7 @@ import UserEdit from "../components/Users/Edit";
 import ProductTypeList from "@/components/ProductType/ProductTypeList";
 import SupplyTypeList from "@/components/SupplyType/SupplyTypeList";
 import SupplyList from "@/components/Supply/SupplyList";
+import ParseList from "@/components/ParseProducts/ParseList";
 
 import CompareHeader from "@/components/Compare/CompareHeader";
 import OrderHeader from "@/components/Order/OrderHeader";
@@ -33,6 +34,7 @@ const routes = [
     { name: 'usersList', path: '/users/', components: {content: UsersList}, meta: {requiresAuth: true, group: 'usersList'} },
     { name: 'userNew', path: '/user/new', components: {content: UserEdit}, meta: {requiresAuth: true, group: 'usersList'} },
     { name: 'userEdit', path: '/user/:id', components: {content: UserEdit}, meta: {requiresAuth: true, group: 'usersList'} },
+    { name: 'parse', path: '/parse/', components: {content: ParseList}, meta: {requiresAuth: true, group: 'parse'} },
 ]
 
 const router = new VueRouter({
