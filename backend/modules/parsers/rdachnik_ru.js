@@ -2,7 +2,7 @@ const {parseUrl, innerText} = require('../Parser');
 
 module.exports = function () {
     return {
-        async getProduct(url) {
+        async getProduct(url, extra = false) {
             let product = await parseUrl(url, {
                 name(document) {
                     let titleEl = document.querySelector('.product-page h1');
@@ -29,16 +29,32 @@ module.exports = function () {
                     return availableText.toLowerCase() === 'в наличии';
                 },
                 price(document) {
-                    let priceEl = document.querySelector('.product-page .autocalc-product-price');
-                    let priceText = innerText(priceEl)
-                        .replace(/[^0-9\.,]+/, '')
-                        .replace(/\.*$/, '')
-                        .trim();
+                    let priceEl = document.querySelector(`#input-option231 option[value="${extra}"]`)
+                    let priceText = priceEl.getAttribute('data-price');
                     return parseFloat(priceText);
                 }
             });
 
             return product;
+        },
+        async getVariants(url) {
+            let {variants} = await parseUrl(url, {
+                variants(document) {
+                    let optionElements = document.querySelectorAll('#input-option231 option');
+                    let variants = [];
+                    for (let option of optionElements) {
+                        let name = innerText(option).replace(/ *\(.*?\)/ig, '');
+                        let value = option.getAttribute('value');
+                        if (value) {
+                            variants.push({name, value});
+                        }
+                    }
+
+                    return variants;
+                }
+            });
+
+            return variants;
         }
     }
 }

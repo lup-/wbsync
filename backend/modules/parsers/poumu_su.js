@@ -2,7 +2,7 @@ const {parseUrl, innerText} = require('../Parser');
 
 module.exports = function () {
     return {
-        async getProduct(url) {
+        async getProduct(url, extra = false) {
             let product = await parseUrl(url, {
                 name(document) {
                     let titleEl = document.querySelector('.in-blocks__title-name');
@@ -28,6 +28,9 @@ module.exports = function () {
             });
 
             return product;
+        },
+        async getVariants(url) {
+            return false;
         }
     }
 }

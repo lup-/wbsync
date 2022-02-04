@@ -6,9 +6,9 @@
                 <v-text-field v-model.number="item.period" label="Через сколько часов обновлять данные"></v-text-field>
             </v-col>
             <v-col cols="12">
-                <v-btn @click="addNewLink">Добавить ссылку</v-btn>
+                <v-btn @click="addNewLink" class="mb-4">Добавить ссылку</v-btn>
                 <div v-for="(link, index) in links" :key="index">
-                    <v-text-field v-model="links[index]" :label="`Ссылка #${index+1}`"></v-text-field>
+                    <parse-link-form v-model="links[index]" :index="index" @delete="deleteLink(index)"></parse-link-form>
                 </div>
             </v-col>
         </v-row>
@@ -16,24 +16,40 @@
 </template>
 
 <script>
+import clone from "lodash.clonedeep";
+import ParseLinkForm from "@/components/ParseProducts/ParseLinkForm";
+
 export default {
     props: ['value'],
+    components: {ParseLinkForm},
     data() {
         return {
-            item: this.value || {},
+            item: clone(this.value) || {},
+            skipUpdateValue: false,
             defaultItem: {},
-            links: this.value ? this.value.links || [] : [],
+            links: this.value ? clone(this.value.links) || [] : [],
         }
     },
     watch: {
         value: {
             deep: true,
             handler() {
-                this.item = this.value;
-                this.links = this.value.links || [];
+                if (this.skipUpdateValue) {
+                    this.skipUpdateValue = false;
+                }
+                else {
+                    this.item = clone(this.value);
+                    this.links = clone(this.value.links) || [];
+                }
             }
         },
         item: {
+            deep: true,
+            handler() {
+                this.emitItem();
+            }
+        },
+        links: {
             deep: true,
             handler() {
                 this.emitItem();
@@ -48,14 +64,20 @@ export default {
     },
     methods: {
         addNewLink() {
-            this.links.push('');
+            this.links.push({});
+        },
+        deleteLink(index) {
+            this.links.splice(index, 1);
         },
         emitItem() {
-            this.item.links = this.links;
-            if (!this.item.period) {
-                this.item.period = 24;
+            let item = clone(this.item);
+            item.links = clone(this.links);
+            if (!item.period) {
+                item.period = 24;
             }
-            this.$emit('input', this.item);
+
+            this.skipUpdateValue = true;
+            this.$emit('input', item);
         }
     },
     computed: {

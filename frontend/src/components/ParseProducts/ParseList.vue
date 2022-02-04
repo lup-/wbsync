@@ -12,6 +12,10 @@
                         :server-items-length="totalItems"
                         :items-per-page="50"
                 >
+                    <template v-slot:[`item.${domain}`]="{ item }" v-for="domain in domains">
+                        {{item[domain]}}
+                        <v-btn icon small @click="editLink(domain, item)" :key="domain"><v-icon>mdi-pencil</v-icon></v-btn>
+                    </template>
                     <template v-slot:item.actions="{ item }">
                         <v-btn icon small @click="editItem(item)"><v-icon>mdi-pencil</v-icon></v-btn>
                         <v-btn icon small color="red" @click="deleteItem(item)"><v-icon>mdi-delete</v-icon></v-btn>
@@ -47,22 +51,47 @@
                 </v-card-actions>
             </v-card>
         </v-dialog>
+        <v-dialog
+            v-model="linkDialog"
+            max-width="600px"
+        >
+            <v-card v-if="editedLink">
+                <v-card-title>
+                    {{editedLink.name}}
+                    <v-spacer></v-spacer>
+                    <v-btn icon @click="closeLink"><v-icon>mdi-close</v-icon></v-btn>
+                </v-card-title>
+                <v-card-text>
+                    <parse-link-form v-model="editedLink" @delete="deleteLink"></parse-link-form>
+                </v-card-text>
+                <v-card-actions>
+                    <v-btn text @click="closeLink">Отмена</v-btn>
+                    <v-spacer></v-spacer>
+                    <v-btn color="primary" large @click="saveLink">Сохранить</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
 
     </v-container>
 </template>
 
 <script>
     import ParseEditForm from "@/components/ParseProducts/ParseEditForm";
+    import ParseLinkForm from "@/components/ParseProducts/ParseLinkForm";
     import moment from "moment";
+    import clone from "lodash.clonedeep";
 
     export default {
-        components: {ParseEditForm},
+        components: {ParseEditForm, ParseLinkForm},
         data() {
             return {
                 defaultItem: {},
                 editedItem: null,
+                editedLink: null,
+                editedLinkIndex: null,
 
                 editDialog: false,
+                linkDialog: false,
                 deleteDialog: false,
 
                 loading: false,
@@ -107,10 +136,23 @@
 
             getAllLinkDomains(items) {
                 let domains = items
-                    .reduce((domains, item) => {
+                    .reduce((domains, item, index) => {
                         let linkDomains = item.links.map(link => {
-                            let url = new URL(link);
-                            return url.hostname.toLowerCase();
+                            if (typeof (link) === 'object') {
+                                if (link.name) {
+                                    return link.name;
+                                }
+
+                                link = link.link;
+                            }
+
+                            if (link) {
+                                let url = new URL(link);
+                                return url.hostname.toLowerCase();
+                            }
+                            else {
+                                return `Ссылка ${index || 0 + 1}`;
+                            }
                         });
 
                         domains = domains.concat(linkDomains);
@@ -120,6 +162,46 @@
 
                 domains.sort();
                 return domains;
+            },
+
+            editLink(domain, item) {
+                this.editedItem = clone(item);
+                this.editedLinkIndex = this.editedItem.links.findIndex(item => item.name === domain);
+                this.editedLink = this.editedLinkIndex !== -1
+                    ? clone(this.editedItem.links[this.editedLinkIndex])
+                    : {};
+                this.linkDialog = true;
+            },
+            closeLink() {
+                this.linkDialog = false;
+                this.editedItem = null;
+                this.editedLink = null;
+                this.editedLinkIndex = null;
+            },
+            async deleteLink() {
+                if (this.editedItem !== null) {
+                    if (this.editedLinkIndex !== -1) {
+                        this.editedItem.links.splice(this.editedLinkIndex, 1);
+                        await this.$store.dispatch('parse/saveItem', this.editedItem);
+                    }
+                }
+
+                this.closeLink();
+                return this.loadItems();
+            },
+            async saveLink() {
+                if (this.editedItem !== null) {
+                    if (this.editedLinkIndex !== -1) {
+                        this.editedItem.links[this.editedLinkIndex] = this.editedLink;
+                    }
+                    else {
+                        this.editedItem.links.push(this.editedLink);
+                    }
+                    await this.$store.dispatch('parse/saveItem', this.editedItem);
+                }
+
+                this.closeLink();
+                return this.loadItems();
             }
         },
         computed: {
@@ -144,13 +226,17 @@
 
                 return baseHeaders;
             },
+            domains() {
+                let items = this.$store.state.parse.list;
+                return this.getAllLinkDomains(items);
+            },
             items() {
                 if (this.loading) {
                     return [];
                 }
 
                 let items = this.$store.state.parse.list;
-                let domains = this.getAllLinkDomains(items);
+                let domains = this.domains;
 
                 return items.map(item => {
                     let domainPrices = item.lastParsed && item.lastParsed.products

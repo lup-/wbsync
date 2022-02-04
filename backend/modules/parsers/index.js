@@ -25,11 +25,18 @@ function getParser(url) {
 
 async function parseWatchItem(watchItem) {
     let parsedProducts = [];
-    for (let url of watchItem.links) {
+    for (let linkData of watchItem.links) {
+        let url = linkData;
+        let extra = false;
+        if (typeof (linkData) === 'object') {
+            url = linkData.link;
+            extra = linkData.extra;
+        }
+
         let host = getHost(url);
         let parser = getParser(url);
         if (parser) {
-            let product = await parser.getProduct(url);
+            let product = await parser.getProduct(url, extra);
 
             if (product) {
                 product.host = host;

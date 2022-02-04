@@ -26,7 +26,8 @@ router
     .post('/api/parse/list', parse.list.bind(parse))
     .post('/api/parse/add', parse.add.bind(parse))
     .post('/api/parse/update', parse.update.bind(parse))
-    .post('/api/parse/delete', parse.delete.bind(parse));
+    .post('/api/parse/delete', parse.delete.bind(parse))
+    .post('/api/parse/variants', parse.variants.bind(parse));
 
 router
     .post('/api/productType/list', productType.list.bind(productType))
@@ -97,4 +98,4 @@ let server = app.listen(PORT, HOST);
 server.setTimeout(5*60*1000);
 server.timeout=5*60*1000;
 
-setRepeatingTask(checkAndParseNewItems, 600);
+setRepeatingTask(checkAndParseNewItems, 600, true);

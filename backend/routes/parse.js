@@ -1,6 +1,7 @@
 const {getDb} = require('../modules/Database');
 const shortid = require('shortid');
 const moment = require('moment');
+const {getParser} = require('../modules/parsers');
 
 const COLLECTION_NAME = 'parse';
 const ITEM_NAME = 'parseLink';
@@ -47,11 +48,11 @@ module.exports = {
         }
 
         if (offset > 0) {
-            pipeline.push({$skip: offset});
+            pipeline.push({ $skip: offset });
         }
 
         if (limit !== -1) {
-            pipeline.push({$limit: limit});
+            pipeline.push({ $limit: limit });
         }
 
         let cursor = db.collection(COLLECTION_NAME)
@@ -124,5 +125,17 @@ module.exports = {
         response[ITEM_NAME] = item;
 
         ctx.body = response;
+    },
+    async variants(ctx) {
+        let url = ctx.request.body.url || false;
+        if (!url) {
+            ctx.body = {variants: false};
+            return;
+        }
+
+        let parser = getParser(url);
+        let variants = await parser.getVariants(url);
+
+        ctx.body = {variants};
     }
 }
