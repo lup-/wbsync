@@ -5,7 +5,8 @@ import Home from "../components/Home";
 import Login from '../components/Users/Login';
 import StockList from "../components/Stock/StockList";
 import OrderList from "../components/Order/OrderList";
-import CompareList from "@/components/Compare/CompareList";
+//import CompareList from "@/components/Compare/CompareList";
+import ProductCompareList from "@/components/Compare/ProductCompareList";
 import KeyList from "../components/Key/KeyList";
 import UsersList from "../components/Users/List";
 import UserEdit from "../components/Users/Edit";
@@ -25,7 +26,7 @@ const routes = [
     { name: 'home', path: '/', components: {content: Home}, meta: {requiresAuth: true, group: 'home'} },
     { name: 'login', path: '/login', components: {content: Login} },
     { name: 'stockList', path: '/stock/', components: {content: StockList, header: CompareHeader}, meta: {requiresAuth: true, group: 'stockList'} },
-    { name: 'compareList', path: '/compare/', components: {content: CompareList, header: CompareHeader}, meta: {requiresAuth: true, group: 'compareList'} },
+    { name: 'compareList', path: '/compare/', components: {content: ProductCompareList, header: CompareHeader}, meta: {requiresAuth: true, group: 'compareList'} },
     { name: 'orderList', path: '/order/', components: {content: OrderList, header: OrderHeader}, meta: {requiresAuth: true, group: 'orderList'} },
     { name: 'keyList', path: '/key/', components: {content: KeyList}, meta: {requiresAuth: true, group: 'keyList'} },
     { name: 'productTypeList', path: '/productType/', components: {content: ProductTypeList}, meta: {requiresAuth: true, group: 'productTypeList'} },

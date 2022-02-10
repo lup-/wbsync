@@ -1,6 +1,6 @@
 import axios from "axios";
 import createDebug from "debug";
-import {normalizeDate, matchByBarcodeOrSku, splitIntoChunks} from "../utils.mjs";
+import {normalizeDate, matchByBarcodeOrSku, matchByBarcode, splitIntoChunks} from "../utils.mjs";
 import {Product} from "../dbProduct.mjs";
 import moment from "moment";
 
@@ -242,12 +242,36 @@ export class Ozon {
         return matched;
     }
 
+    matchDbProducts(dbProducts, ozonProducts) {
+        let matched = [];
+
+        for (let sourceProduct of dbProducts) {
+            let matchedOzonProducts = matchByBarcode(sourceProduct, ozonProducts);
+            if (matchedOzonProducts && matchedOzonProducts.length > 0) {
+                for (let ozonProduct of matchedOzonProducts) {
+                    matched.push({
+                        source: sourceProduct,
+                        target: ozonProduct,
+                    });
+                }
+            }
+        }
+
+        return matched;
+    }
+
     updateQuantities(stocks) {
         return this.callPostMethod('v1/product/import/stocks', {stocks});
     }
 
-    async syncLeftovers(fromStocks, toStocks) {
-        let matchedStocks = this.matchProducts(fromStocks, toStocks);
+    async syncLeftovers(isDbSync, fromStocks, toStocks) {
+        let matchedStocks = [];
+        if (isDbSync) {
+            matchedStocks = this.matchDbProducts(fromStocks, toStocks);
+        }
+        else {
+            matchedStocks = this.matchProducts(fromStocks, toStocks);
+        }
 
         let allStocks = matchedStocks.map(matched => ({
             offer_id: matched.target.sku,

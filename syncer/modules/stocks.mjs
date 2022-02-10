@@ -6,6 +6,7 @@ import moment from "moment";
 import {InSales} from "./insales/index.mjs";
 import {Ozon} from "./ozon/index.mjs";
 import {Wildberries} from "./wildberries/index.mjs";
+import {ObjectId} from "mongodb";
 
 function getId(product) {
     return getUniqueCodeByProps(product);
@@ -210,7 +211,8 @@ async function uploadStocks(stockIds, idField, from, to, debug) {
 
     let errorIds = null;
     if (provider) {
-        errorIds = await provider.syncLeftovers(fromStocks, toStocks);
+        let isDbSync = false;
+        errorIds = await provider.syncLeftovers(isDbSync, fromStocks, toStocks);
         await downloadStocksForKey(db, key, debug);
     }
 
@@ -225,4 +227,51 @@ async function uploadStocks(stockIds, idField, from, to, debug) {
     });
 }
 
-export {downloadAllStocks, uploadStocks}
+async function uploadProductStocks(stockIds, to, debug) {
+    stockIds = stockIds
+        .filter(id => Boolean(id))
+        .map(strId => new ObjectId(strId));
+    let {source: toSource, keyId: toKeyId} = to;
+
+    let db = await getDb();
+    let key = await db.collection('keys').findOne({id: toKeyId, deleted: {$in: [null, false]}});
+
+    let toStocksQuery = {
+        source: toSource,
+        keyId: toKeyId,
+        deleted: {$in: [null, false]}
+    }
+
+    let fromStocks = await db.collection('products').find({_id: {$in: stockIds}}).toArray();
+    let toStocks = await db.collection('stock').find(toStocksQuery).toArray();
+
+    let provider = null;
+    if (toSource === 'insales') {
+        provider = new InSales(key.insales_api_id, key.insales_api_password, key.api_base);
+    }
+
+    if (toSource === 'wildberries') {
+        provider = new Wildberries(key.wb_64bit, key.wb_new);
+    }
+
+    if (toSource === 'ozon') {
+        provider = new Ozon(key.client_id, key.api_key);
+    }
+
+    let errorIds = null;
+    if (provider) {
+        let isDbSync = true;
+        errorIds = await provider.syncLeftovers(isDbSync, fromStocks, toStocks);
+        await downloadStocksForKey(db, key, debug);
+    }
+
+    await db.collection('log').insertOne({
+        type: 'uploadProductStocks',
+        date: moment().unix(),
+        to,
+        stockIds,
+        errorIds
+    });
+}
+
+export {downloadAllStocks, uploadStocks, uploadProductStocks}

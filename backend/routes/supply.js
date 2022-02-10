@@ -1,4 +1,5 @@
 const {getDb} = require('../modules/Database');
+const {prepareProducts, syncProducts} = require('../modules/Product');
 const shortid = require('shortid');
 const moment = require('moment');
 const iconv = require('iconv-lite');
@@ -69,6 +70,11 @@ function parseProducts(csv, supplyType, productType) {
 
     let products = [];
     for (let row of csv) {
+        let isEmptyRow = !row || (row && row.length === 0) || (row && row.length === 1 && row[0] === '');
+        if (isEmptyRow) {
+            continue;
+        }
+
         let product = {};
         for (let mapping of fieldMappings) {
             let field = productType.fields.find(field => mapping.fieldCode === field.code);
@@ -86,7 +92,7 @@ function parseProducts(csv, supplyType, productType) {
                     }
                 }
 
-                if (field.type === 'number') {
+                if (field.type === 'quantity') {
                     try {
                         value = parseInt(value);
                     }
@@ -216,6 +222,59 @@ module.exports = {
         response['totalCount'] = totalCount;
 
         ctx.body = response;
+    },
+    async accept(ctx) {
+        let supply = ctx.request.body.supply;
+        let options = ctx.request.body.options;
+        if (!supply) {
+            ctx.body = {supply: false}
+            return;
+        }
+
+        let db = await getDb();
+        let filter = {
+            'supplyId': supply.id,
+            'deleted': {$in: [null, false]}
+        };
+
+        let supplyProducts = await db.collection('supplyProducts')
+            .aggregate([
+                {$match: filter},
+                {$project: {rawCsv: 0, parsedCsv: 0}}
+            ])
+            .toArray();
+
+        let supplyType = await db.collection('supplyTypes').findOne({id: supply.supplyTypeId});
+        let productType = await db.collection('productTypes').findOne({id: supplyType.productTypeId});
+
+        let syncResult = false;
+        let error = false;
+        if (supplyProducts && supplyProducts.length > 0) {
+            let products = prepareProducts(supplyProducts, productType)
+                .filter(product => product.barcode && product.barcode.length > 0);
+
+            if (products && products.length > 0) {
+                try {
+                    syncResult = await syncProducts(db, products, supply, productType, options);
+                    await db.collection('supplies').updateOne({id: supply.id}, {$set: {
+                        accepted: moment().unix(),
+                        acceptOptions: options,
+                    }});
+                    supply = await db.collection('supplies').findOne({id: supply.id});
+                }
+                catch (e) {
+                    error = e.toString();
+                }
+            }
+            else {
+                error = 'В поставке не найдены товары со штрихкодами';
+            }
+        }
+        else {
+            error = 'В поставке не найдены подходящие товары';
+        }
+
+        ctx.body = {supply, productType, syncResult, error}
     },
     async add(ctx) {
         let file = ctx.file;

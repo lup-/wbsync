@@ -6,7 +6,7 @@
         <v-card>
             <v-card-title>Отправка остатков</v-card-title>
             <v-card-text>
-                <v-select
+                <v-select v-if="!skipFrom"
                     v-model="fields.from"
                     :items="fromSources"
                     label="Откуда"
@@ -36,7 +36,7 @@
 
 <script>
 export default {
-    props: ['value', 'show'],
+    props: ['value', 'show', 'skipFrom'],
     data() {
         return {
             showDialog: this.show,

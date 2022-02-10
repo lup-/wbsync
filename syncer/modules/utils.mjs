@@ -65,6 +65,10 @@ function matchByBarcode(sourceProduct, targetProducts) {
         return [];
     }
 
+    if (srcBarcode instanceof Array) {
+        return targetProducts.filter(targetProduct => srcBarcode.indexOf(targetProduct.barcode) !== -1);
+    }
+
     return targetProducts.filter(targetProduct => targetProduct.barcode === srcBarcode);
 }
 

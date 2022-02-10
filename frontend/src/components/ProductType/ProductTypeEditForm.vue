@@ -63,6 +63,7 @@ export default {
                 {text: 'Количество', value: 'quantity'},
                 {text: 'Строка', value: 'string'},
                 {text: 'Текст', value: 'text'},
+                {text: 'Название', value: 'title'},
                 {text: 'Число', value: 'number'},
                 {text: 'Список', value: 'list'},
             ],

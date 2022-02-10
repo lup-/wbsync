@@ -1,6 +1,6 @@
 import BeeQueue from "bee-queue";
 import createDebug from "debug";
-import {downloadAllStocks, uploadStocks} from "./modules/stocks.mjs";
+import {downloadAllStocks, uploadStocks, uploadProductStocks} from "./modules/stocks.mjs";
 import {syncAllOrders} from "./modules/orders.mjs";
 
 const queueSettings = {
@@ -23,6 +23,11 @@ stocksQueue.process(async (job) => {
     if (jobType === 'upload') {
         let {ids: stockIds, field: idField, from, to} = job.data;
         result = await uploadStocks(stockIds, idField, from, to, debug);
+    }
+
+    if (jobType === 'uploadProductStocks') {
+        let {ids: stockIds, to} = job.data;
+        result = await uploadProductStocks(stockIds, to, debug);
     }
 
     if (jobType === 'download') {

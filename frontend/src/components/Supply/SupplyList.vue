@@ -13,7 +13,10 @@
                         :items-per-page="50"
                 >
                     <template v-slot:item.actions="{ item }">
-                        <v-btn icon small @click="editItem(item)"><v-icon>mdi-pencil</v-icon></v-btn>
+                        <v-btn icon small @click="toggleAcceptDialog(item)" v-if="!isAccepted(item)">
+                            <v-icon>mdi-check</v-icon>
+                        </v-btn>
+                        <v-btn icon small @click="editItem(item)" v-if="!isAccepted(item)"><v-icon>mdi-pencil</v-icon></v-btn>
                         <v-btn icon small @click="loadProducts(item)"><v-icon>mdi-tshirt-v</v-icon></v-btn>
                         <v-btn icon small color="red" @click="deleteItem(item)"><v-icon>mdi-delete</v-icon></v-btn>
                     </template>
@@ -38,6 +41,12 @@
         </v-row>
 
         <v-btn fab bottom right fixed large color="primary" @click="newItem"><v-icon>mdi-plus</v-icon></v-btn>
+
+        <accept-dialog
+            v-model="acceptDialog"
+            :supply="selectedSupply"
+            @accept="acceptSupply"
+        ></accept-dialog>
 
         <v-dialog
                 v-model="editDialog"
@@ -70,9 +79,10 @@
 
 <script>
     import SupplyEditForm from "@/components/Supply/SupplyEditForm";
+    import AcceptDialog from "@/components/Supply/AcceptDialog";
 
     export default {
-        components: {SupplyEditForm},
+        components: {SupplyEditForm, AcceptDialog},
         data() {
             return {
                 defaultItem: {},
@@ -80,6 +90,7 @@
 
                 editDialog: false,
                 deleteDialog: false,
+                acceptDialog: false,
 
                 loading: false,
                 loadingProducts: false,
@@ -143,10 +154,20 @@
                 this.editedItem = Object.assign({}, this.defaultItem);
                 this.editDialog = true;
             },
-
             close() {
                 this.editDialog = false;
                 this.editedItem = null;
+            },
+            toggleAcceptDialog(supply) {
+                this.selectedSupply = supply;
+                this.acceptDialog = true;
+            },
+            async acceptSupply(supply, options) {
+                await this.$store.dispatch('supply/accept', {supply, options});
+                return this.loadItems();
+            },
+            isAccepted(supply) {
+                return supply.accepted > 0;
             },
 
             async save() {

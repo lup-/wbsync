@@ -44,6 +44,7 @@ router
 router
     .post('/api/supply/list', supply.list.bind(supply))
     .post('/api/supply/listProducts', supply.listProducts.bind(supply))
+    .post('/api/supply/accept', supply.accept.bind(supply))
     .post('/api/supply/add', upload.single('file'), supply.add.bind(supply))
     .post('/api/supply/update', upload.single('file'), supply.update.bind(supply))
     .post('/api/supply/delete', supply.delete.bind(supply));
@@ -51,6 +52,7 @@ router
 router
     .post('/api/stock/list', stock.list.bind(stock))
     .post('/api/stock/match', stock.match.bind(stock))
+    .post('/api/stock/matchWithProducts', stock.matchWithProducts.bind(stock))
     .post('/api/stock/add', stock.add.bind(stock))
     .post('/api/stock/update', stock.update.bind(stock))
     .post('/api/stock/delete', stock.delete.bind(stock));

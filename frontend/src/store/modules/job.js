@@ -22,7 +22,6 @@ async function waitForJobEnd(job, commit, type) {
                 }
             }
         }, POLL_INTERVAL_MS);
-
     });
 
 }
@@ -51,6 +50,21 @@ export default {
                 ids: params.ids,
                 field: params.idField,
                 from: params.from,
+                to: params.to
+            }
+
+            let {data} = await axios.post(`/api/job/stocks`, {job: newJob});
+            let createdJob = data.job;
+
+            commit('setSuccessMessage', 'Отправка остатков запущена!', { root: true });
+
+            await commit('addJob', createdJob);
+            return waitForJobEnd(createdJob, commit, 'stocks');
+        },
+        async uploadProductStocks({commit, dispatch}, params) {
+            let newJob = {
+                type: 'uploadProductStocks',
+                ids: params.ids,
                 to: params.to
             }
 

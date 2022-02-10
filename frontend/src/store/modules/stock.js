@@ -156,6 +156,56 @@ export default new Crud({
                 }
             }
         },
+        async loadProductCompareItems({commit}, inputParams) {
+            let {filter = {}, limit = 15, offset = 0, sort = {}, params = {}} = {...inputParams};
+
+            if (!API_LIST_URL) {
+                return;
+            }
+
+            await commit('cancelRequests', 'compareCancel');
+
+            const request = axios.CancelToken.source();
+            await commit('addCancelToken', {type: 'compareCancel', request});
+            let download = params.downloadAsCsv || false;
+
+            if (download) {
+                let data = {filter, limit, offset, sort, ...params};
+                try {
+                    let response = await axios({
+                        url: '/api/stock/matchWithProducts',
+                        method: 'POST',
+                        data,
+                        responseType: 'blob',
+                        cancelToken: request.token
+                    });
+                    downloadFile(response.data, `compare_${moment().unix()}.csv`);
+                }
+                catch (e) {
+                    if (e.constructor.name !== 'Cancel') {
+                        throw e;
+                    }
+                }
+            }
+            else {
+                try {
+                    let response = await axios.post(
+                        '/api/stock/matchWithProducts',
+                        {filter, limit, offset, sort, ...params},
+                        {cancelToken: request.token}
+                    );
+                    await commit('setCompareParams', {filter, limit, offset, sort});
+                    await commit('setCompareTotalCount', response.data['totalCount']);
+                    await commit('setCompareVariants', response.data['variants']);
+                    await commit('setCompareItems', response.data['compare']);
+                }
+                catch (e) {
+                    if (e.constructor.name !== 'Cancel') {
+                        throw e;
+                    }
+                }
+            }
+        },
     },
     mutations: {
         setCompareItems(state, items) {

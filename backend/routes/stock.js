@@ -125,6 +125,47 @@ function uniqueValuesOrSingleValue(items, field) {
     return uniqueValues;
 }
 
+function getUniqueKeySources(items) {
+    let uniqueKeySources = {};
+
+    for (const item of items) {
+        for (const stock of item.stocks) {
+            let keySource = [stock.source, stock.keyId].filter(part => Boolean(part)).join('.');
+
+            if (!uniqueKeySources[keySource]) {
+                uniqueKeySources[keySource] = {
+                    id: keySource,
+                    source: stock.source,
+                    keyId: stock.keyId || null
+                }
+            }
+        }
+    }
+
+    uniqueKeySources = Object.values(uniqueKeySources);
+    uniqueKeySources.sort((a, b) => {
+        if (a.source === '1c') {
+            return SORT_A_TO_BEGIN;
+        }
+
+        if (b.source === '1c') {
+            return SORT_B_TO_BEGIN;
+        }
+
+        if (a.keyId === null) {
+            return SORT_A_TO_BEGIN;
+        }
+
+        if (b.keyId === null) {
+            return SORT_B_TO_BEGIN;
+        }
+
+        return a && a.key && b && b.key ? a.key.localeCompare(b.key) : 0;
+    });
+
+    return uniqueKeySources;
+}
+
 module.exports = {
     async list(ctx) {
         let inputFilter = ctx.request.body && ctx.request.body.filter
@@ -346,7 +387,7 @@ module.exports = {
                 barcodeOrSku: {$cond: {if: {$in: ["$barcode", ["", null, false]]}, then: "$sku", else: "$barcode"}}
             } },
             {
-              $project: {raw: 0}
+                $project: {raw: 0}
             },
             { $group: {"_id": `$${matchField}`, "stocks": {$addToSet: "$$ROOT"}} },
         ];
@@ -371,42 +412,7 @@ module.exports = {
         }
 
         let items = await cursor.toArray();
-        let uniqueKeySources = {};
-
-        for (const item of items) {
-            for (const stock of item.stocks) {
-                let keySource = [stock.source, stock.keyId].filter(part => Boolean(part)).join('.');
-
-                if (!uniqueKeySources[keySource]) {
-                    uniqueKeySources[keySource] = {
-                        id: keySource,
-                        source: stock.source,
-                        keyId: stock.keyId || null
-                    }
-                }
-            }
-        }
-
-        uniqueKeySources = Object.values(uniqueKeySources);
-        uniqueKeySources.sort((a, b) => {
-            if (a.source === '1c') {
-                return SORT_A_TO_BEGIN;
-            }
-
-            if (b.source === '1c') {
-                return SORT_B_TO_BEGIN;
-            }
-
-            if (a.keyId === null) {
-                return SORT_A_TO_BEGIN;
-            }
-
-            if (b.keyId === null) {
-                return SORT_B_TO_BEGIN;
-            }
-
-            return a && a.key && b && b.key ? a.key.localeCompare(b.key) : 0;
-        });
+        let uniqueKeySources = getUniqueKeySources(items);
 
         let compareItems = items.map(item => {
             let compareItem = {
@@ -507,6 +513,142 @@ module.exports = {
             response['variants'] = uniqueKeySources;
 
             ctx.body = response;
+        }
+    },
+    async matchWithProducts(ctx) {
+        ctx.request.socket.setTimeout(5 * 60 * 1000);
+        ctx.req.setTimeout(5 * 60 * 1000);
+
+        let inputFilter = ctx.request.body && ctx.request.body.filter
+            ? ctx.request.body.filter || {}
+            : {};
+
+        let sort = ctx.request.body && ctx.request.body.sort
+            ? ctx.request.body.sort || {}
+            : {};
+
+        let limit = ctx.request.body.limit ? parseInt(ctx.request.body.limit) : null;
+        let offset = ctx.request.body.offset ? parseInt(ctx.request.body.offset) : 0;
+        let downloadAsCsv = ctx.request.body.downloadAsCsv || false;
+        let onlyUnequal = typeof (ctx.request.body.onlyUnequal) !== 'undefined'
+            ? Boolean(ctx.request.body.onlyUnequal)
+            : false;
+
+        let defaultFilter = {
+            'deleted': {$in: [null, false]}
+        };
+
+        let filter = Object.assign(defaultFilter, inputFilter);
+
+        let pipeline = [
+            { $match: filter },
+            { $unwind: '$barcode' },
+            { $lookup: {
+                from: "stock",
+                localField: "barcode",
+                foreignField: "barcode",
+                as: "stock"
+            } },
+            { $unwind: '$stock' },
+            { $group: {
+                _id: '$_id',
+                title: {$first: '$title'},
+                barcode: {$addToSet: '$barcode'},
+                sku: {$addToSet: '$sku'},
+                stockSku: {$addToSet: '$stock.sku'},
+                price: {$first: '$price'},
+                quantity: {$first: '$quantity'},
+                props: {$first: '$props'},
+                stocks: {$push: {
+                    source: '$stock.source',
+                    keyId: '$stock.keyId',
+                    quantity: '$stock.quantity',
+                    price: '$stock.price',
+                }}
+            } },
+            { $addFields: {stockQuantities: {$map: {
+                input: '$stocks',
+                as: 'src',
+                in: '$$src.quantity'
+            }}} },
+            { $addFields: {sameQuantity: {$reduce: {
+                input: '$stockQuantities',
+                initialValue: true,
+                in: {$and: ['$$value', {$eq: ['$$this', '$quantity']}]}
+            }}} },
+        ];
+
+        if (onlyUnequal) {
+            pipeline.push({$match: {sameQuantity: false}});
+        }
+
+        let db = await getDb();
+
+        if (sort && Object.keys(sort).length > 0) {
+            pipeline.push({ $sort: sort });
+        }
+
+        let cursor = db.collection('products').aggregate(pipeline, { allowDiskUse: true });
+
+        if (!downloadAsCsv) {
+            cursor = cursor.skip(offset);
+
+            if (limit !== -1) {
+                cursor = cursor.limit(limit);
+            }
+        }
+
+        let items = await cursor.toArray();
+        let uniqueKeySources = getUniqueKeySources(items);
+
+        let totalCount = items.length;
+        if (limit !== -1) {
+            pipeline = pipeline.filter(stage => ['$skip', '$limit'].indexOf(Object.keys(stage)[0]) === -1)
+            pipeline.push({$count: 'totalDocuments'});
+
+            let countItem = await db.collection('products').aggregate(pipeline, {allowDiskUse: true}).toArray();
+            totalCount = countItem && countItem[0] ? countItem[0].totalDocuments : 0;
+        }
+
+        if (downloadAsCsv) {
+            let db = await getDb();
+            let keys = await db.collection('keys').find({'deleted': {$in: [null, false]}}).toArray();
+            let keyTitles = keys.reduce((aggr, key) => {
+                aggr[key.id] = key.title;
+                return aggr;
+            }, {});
+
+            let jsonFields = [
+                {text: 'Штрих-код', value: 'barcode'},
+                {text: 'Артикул', value: 'sku'},
+                {text: 'Название', value: 'title'}
+            ];
+
+            let compareHeaders = uniqueKeySources.map(variant => ({
+                text: variant.keyId ? keyTitles[variant.keyId] : variant.source,
+                value: variant.id,
+            }));
+
+            jsonFields = jsonFields.concat(compareHeaders);
+
+            let header = jsonFields.map(item => item.text);
+
+            let csvLines = [];
+            csvLines.push(lineToCsv(header));
+
+            let csv = csvLines.join('\n');
+
+            ctx.attachment(`compare_${moment().unix()}.csv`);
+            ctx.statusCode = 200;
+            ctx.type = 'text/csv';
+            ctx.body = iconv.encode(csv, 'windows-1251');
+        }
+        else {
+            ctx.body = {
+                'compare': items,
+                'totalCount': totalCount,
+                'variants': uniqueKeySources,
+            };
         }
     },
     async add(ctx) {

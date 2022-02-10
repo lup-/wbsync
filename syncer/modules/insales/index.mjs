@@ -217,6 +217,26 @@ export class InSales {
         return this.findProductsByFunction(matchFunction, insalesProducts)
     }
 
+    matchDbProducts(dbProducts, insalesProducts) {
+        let matched = [];
+        for (let sourceProduct of dbProducts) {
+            let matchedProducts = this.findProductsByVariantField('barcode', sourceProduct.barcode, insalesProducts);
+            if (matchedProducts) {
+                for (let product of matchedProducts) {
+                    for (let variant of product.matchingVariants) {
+                        matched.push({
+                            db: sourceProduct,
+                            product,
+                            variant,
+                        });
+                    }
+                }
+            }
+        }
+
+        return {matched};
+    }
+
     matchProducts(sourceProducts, insalesProducts, options) {
         let sizeOptionIds = options
             .filter(option => option.title.toLowerCase().indexOf('размер') !== -1)
@@ -275,7 +295,7 @@ export class InSales {
         return {matched, missingInDb, missingInInsales};
     }
 
-    async syncLeftovers(fromStocks) {
+    async syncLeftovers(isDbSync, fromStocks) {
         const MAX_VARIANTS_PER_REQUEST = 100;
 
         if (fromStocks.length === 0) {
@@ -285,7 +305,16 @@ export class InSales {
         let insalesProducts = await this.fetchProducts();
         let options = await this.fetchOptions();
 
-        let {matched: matchedProducts} = this.matchProducts(fromStocks, insalesProducts, options);
+        let matchedProducts = [];
+        if (isDbSync) {
+            let {matched} = this.matchDbProducts(fromStocks, insalesProducts);
+            matchedProducts = matched;
+        }
+        else {
+            let {matched} = this.matchProducts(fromStocks, insalesProducts, options);
+            matchedProducts = matched;
+        }
+
         let variants = matchedProducts.map(matched => ({
             id: matched.variant.id,
             quantity: matched.db.quantity,

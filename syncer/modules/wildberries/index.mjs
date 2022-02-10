@@ -259,7 +259,7 @@ export class Wildberries {
         return this.postV2Api('stocks', stocks);
     }
 
-    async syncLeftovers(fromStocks, toStocks) {
+    async syncLeftovers(isDbSync, fromStocks, toStocks) {
         let matchedStocks = this.matchProducts(fromStocks, toStocks);
         let warehouses = await this.getWarehouses();
         let targetWarehouse = warehouses[0];

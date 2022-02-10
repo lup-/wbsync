@@ -88,7 +88,11 @@ export default new Crud({
             }
 
             return dispatch('loadItems', state.currentParams);
-        }
+        },
+        async accept(_, {supply, options}) {
+            let query = {supply, options};
+            await axios.post('/api/supply/accept', query);
+        },
     },
     mutations: {
         setSupplyProducts(state, items) {
