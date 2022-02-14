@@ -25,6 +25,7 @@ export default new Vuex.Store({
             {code: 'supplyList', title: 'Поставки', icon: 'mdi-truck'},
             {code: 'stockList', title: 'Остатки', icon: 'mdi-tshirt-v'},
             {code: 'compareList', title: 'Сравнение остатков', icon: 'mdi-compare'},
+            {code: 'oldCompareList', title: 'Старое сравнение остатков', icon: 'mdi-compare-remove'},
             {code: 'orderList', title: 'Заказы', icon: 'mdi-cart'},
             {code: 'keyList', title: 'Ключи доступа', icon: 'mdi-key'},
             {code: 'usersList', title: 'Пользователи', icon: 'mdi-account'},

@@ -61,7 +61,7 @@ export default {
             await commit('addJob', createdJob);
             return waitForJobEnd(createdJob, commit, 'stocks');
         },
-        async uploadProductStocks({commit, dispatch}, params) {
+        async uploadProductStocks({commit}, params) {
             let newJob = {
                 type: 'uploadProductStocks',
                 ids: params.ids,
