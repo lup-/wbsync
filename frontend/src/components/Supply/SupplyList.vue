@@ -16,6 +16,9 @@
                         <v-btn icon small @click="toggleAcceptDialog(item)" v-if="!isAccepted(item)">
                             <v-icon>mdi-check</v-icon>
                         </v-btn>
+                        <v-btn icon small @click="toggleAcceptDialog(item)" v-if="canRepeat(item)">
+                            <v-icon>mdi-reload</v-icon>
+                        </v-btn>
                         <v-btn icon small @click="editItem(item)" v-if="!isAccepted(item)"><v-icon>mdi-pencil</v-icon></v-btn>
                         <v-btn icon small @click="loadProducts(item)"><v-icon>mdi-tshirt-v</v-icon></v-btn>
                         <v-btn icon small color="red" @click="deleteItem(item)"><v-icon>mdi-delete</v-icon></v-btn>
@@ -169,7 +172,9 @@
             isAccepted(supply) {
                 return supply.accepted > 0;
             },
-
+            canRepeat(supply) {
+                return this.isAccepted(supply) && supply.acceptOptions && supply.acceptOptions.stockType === 'set';
+            },
             async save() {
                 if (this.editedItem !== null) {
                     let saveAction = this.isNewEditing ? 'supply/newItem' : 'supply/saveItem';

@@ -31,11 +31,19 @@ function prepareProduct(supplyProduct, systemFieldCodes) {
     for (let fieldType of Object.keys(systemFieldCodes)) {
         let values = [];
         for (let fieldCode of systemFieldCodes[fieldType]) {
-            values.push(supplyProduct[fieldCode]);
+            let value = supplyProduct[fieldCode];
+            if (value instanceof Array) {
+                values = values.concat(value);
+            }
+            else {
+                values.push(supplyProduct[fieldCode]);
+            }
         }
 
         if (values.length <= 1) {
-            values = values[0] || null;
+            values = typeof (values[0]) !== 'undefined'
+                ? values[0]
+                : null;
         }
 
         systemFields[fieldType] = values;
@@ -174,8 +182,7 @@ async function syncProducts(db, products, supply, productType, options) {
         let operations = {};
 
         if (updateProps) {
-            let systemFieldCodes = getSystemFieldCodes(productType);
-            let newProduct = prepareProduct(productToUpdate.import, systemFieldCodes);
+            let newProduct = Object.assign({}, productToUpdate.import);
             operations['$set'] = newProduct;
             if (stockType === 'add') {
                 operations['$set']['quantity'] = productToUpdate.db.quantity + productToUpdate.import.quantity;

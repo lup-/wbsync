@@ -214,7 +214,7 @@
                     }
 
                     for (let stock of item.stocks) {
-                        let id = stock.source+'.'+stock.keyId;
+                        let id = stock.keyId ? stock.source+'.'+stock.keyId : stock.source;
                         itemWithStocks[id] = stock.quantity || '';
                     }
 

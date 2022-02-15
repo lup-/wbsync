@@ -29,9 +29,15 @@ export default {
     data() {
         return {
             showDialog: this.value,
-            stockType: 'add',
-            joinSameBarcodes: true,
-            updateProps: false,
+            stockType: this.supply && this.supply.acceptOptions
+                ? this.supply.acceptOptions.stockType
+                : 'add',
+            joinSameBarcodes: this.supply && this.supply.acceptOptions
+                ? this.supply.acceptOptions.stockType
+                : true,
+            updateProps: this.supply && this.supply.acceptOptions
+                ? this.supply.acceptOptions.stockType
+                : false,
             stockTypes: [
                 {text: 'Добавить к текущим остаткам', value: 'add'},
                 {text: 'Установить точное значение', value: 'set'}
@@ -41,6 +47,13 @@ export default {
     watch: {
         value() {
             this.showDialog = this.value;
+        },
+        supply() {
+            if (this.supply && this.supply.acceptOptions) {
+                this.stockType = this.supply.acceptOptions.stockType;
+                this.joinSameBarcodes = this.supply.acceptOptions.joinSameBarcodes;
+                this.updateProps = this.supply.acceptOptions.updateProps;
+            }
         }
     },
     methods: {
