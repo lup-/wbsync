@@ -148,7 +148,9 @@
 
                             if (link) {
                                 let url = new URL(link);
-                                return url.hostname.toLowerCase();
+                                return url.hostname.toLowerCase()
+                                    .replace('www.', '')
+                                    .trim();
                             }
                             else {
                                 return `Ссылка ${index || 0 + 1}`;
@@ -241,7 +243,12 @@
                 return items.map(item => {
                     let domainPrices = item.lastParsed && item.lastParsed.products
                         ? item.lastParsed.products.reduce((prices, product) => {
-                            prices[product.host] = product.price;
+                            if (product.linkName) {
+                                prices[product.linkName] = product.price;
+                            }
+                            else {
+                                prices[product.host] = product.price;
+                            }
                             return prices;
                           }, {})
                         : {};

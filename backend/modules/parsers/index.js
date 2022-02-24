@@ -5,7 +5,11 @@ function getHost(link) {
 
     try {
         let url = new URL(link);
-        return url.hostname.toLowerCase() || false;
+        if (url && url.hostname) {
+            return url.hostname.toLowerCase()
+                .replace('www.', '');
+        }
+        return false;
     }
     catch (e) {
         return  false;
@@ -40,6 +44,7 @@ async function parseWatchItem(watchItem) {
 
             if (product) {
                 product.host = host;
+                product.linkName = linkData.name;
                 parsedProducts.push(product);
             }
         }

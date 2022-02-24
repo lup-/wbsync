@@ -14,6 +14,7 @@ const supply = require('./routes/supply');
 const parse = require('./routes/parse');
 
 const {checkAndParseNewItems, setRepeatingTask} = require('./modules/Parser');
+const startParserQueueProcessing = require('./job');
 
 const PORT = 3000;
 const HOST = '0.0.0.0';
@@ -81,6 +82,7 @@ router
 router
     .post('/api/job/stocks', job.syncStocks.bind(job))
     .post('/api/job/orders', job.syncOrders.bind(job))
+    .post('/api/job/parser', job.parser.bind(job))
     .post('/api/job/status', job.status.bind(job))
     .get('/api/job/last', job.lastJobs.bind(job));
 
@@ -101,3 +103,4 @@ server.setTimeout(5*60*1000);
 server.timeout=5*60*1000;
 
 setRepeatingTask(checkAndParseNewItems, 600, true);
+startParserQueueProcessing();

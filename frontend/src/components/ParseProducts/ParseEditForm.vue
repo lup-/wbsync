@@ -7,7 +7,7 @@
             </v-col>
             <v-col cols="12">
                 <v-btn @click="addNewLink" class="mb-4">Добавить ссылку</v-btn>
-                <div v-for="(link, index) in links" :key="index">
+                <div v-for="(link, index) in links" :key="link.name">
                     <parse-link-form v-model="links[index]" :index="index" @delete="deleteLink(index)"></parse-link-form>
                 </div>
             </v-col>

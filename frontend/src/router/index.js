@@ -17,6 +17,7 @@ import ParseList from "@/components/ParseProducts/ParseList";
 
 import CompareHeader from "@/components/Compare/CompareHeader";
 import OrderHeader from "@/components/Order/OrderHeader";
+import ParseHeader from "@/components/ParseProducts/ParseHeader";
 
 import store from "../store";
 
@@ -36,7 +37,7 @@ const routes = [
     { name: 'usersList', path: '/users/', components: {content: UsersList}, meta: {requiresAuth: true, group: 'usersList'} },
     { name: 'userNew', path: '/user/new', components: {content: UserEdit}, meta: {requiresAuth: true, group: 'usersList'} },
     { name: 'userEdit', path: '/user/:id', components: {content: UserEdit}, meta: {requiresAuth: true, group: 'usersList'} },
-    { name: 'parse', path: '/parse/', components: {content: ParseList}, meta: {requiresAuth: true, group: 'parse'} },
+    { name: 'parse', path: '/parse/', components: {content: ParseList, header: ParseHeader}, meta: {requiresAuth: true, group: 'parse'} },
 ]
 
 const router = new VueRouter({

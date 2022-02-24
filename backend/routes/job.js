@@ -1,14 +1,5 @@
-const BeeQueue = require('bee-queue');
 const {getDb} = require("../modules/Database");
-const queueSettings = {
-    redis: {
-        host: process.env.REDIS,
-        port: process.env.REDIS_PORT || 6379,
-    }
-}
-
-const stocksQueue = new BeeQueue('stocks', queueSettings);
-const ordersQueue = new BeeQueue('orders', queueSettings);
+const {stocksQueue, ordersQueue, parserQueue} = require('../modules/Queue');
 
 module.exports = {
     async syncStocks(ctx) {
@@ -21,6 +12,13 @@ module.exports = {
         let jobParams = ctx.request.body && ctx.request.body.job;
         let job = ordersQueue.createJob(jobParams);
         await job.save();
+        ctx.body = {job};
+    },
+    async parser(ctx) {
+        let jobParams = ctx.request.body && ctx.request.body.job;
+        let job = parserQueue.createJob(jobParams);
+        await job.save();
+        delete job.queue;
         ctx.body = {job};
     },
     async status(ctx) {

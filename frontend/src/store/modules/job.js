@@ -98,6 +98,15 @@ export default {
             await commit('addJob', createdJob);
             return waitForJobEnd(createdJob, commit, 'orders');
         },
+        async parseAll({commit}) {
+            let {data} = await axios.post(`/api/job/parser`, {job: {type: 'parseAll'}});
+            let createdJob = data.job;
+
+            commit('setSuccessMessage', 'Загрузка цен запущена!', { root: true });
+
+            await commit('addJob', createdJob);
+            return waitForJobEnd(createdJob, commit, 'orders');
+        },
     },
     mutations: {
         addJob(state, job) {

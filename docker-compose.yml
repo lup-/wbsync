@@ -64,6 +64,7 @@ services:
       - mongo
     volumes:
       - ./syncer:/var/www
+      - ./backend/modules:/var/www/backend_modules
       - ${STOCKS_IMPORT_FOLDER}:/var/www/import
     working_dir: /var/www
     environment:

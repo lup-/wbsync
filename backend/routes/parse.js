@@ -134,7 +134,10 @@ module.exports = {
         }
 
         let parser = getParser(url);
-        let variants = await parser.getVariants(url);
+        let variants = false;
+        if (parser) {
+            variants = await parser.getVariants(url);
+        }
 
         ctx.body = {variants};
     }

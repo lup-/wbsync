@@ -10,11 +10,16 @@ function trimHTML(html) {
     return he.decode(html)
         .replace(/<!\-\-.*?\-\->/ig, '')
         .replace(/<\/*[a-z]+.*?>/ig, '')
-        .replace(/ +/, ' ')
+        .replace(/ +/g, ' ')
+        .replace(/\t+/g, '\t')
         .trim();
 }
 function innerText(element) {
-    return trimHTML(element.innerHTML || '');
+    if (element) {
+        return trimHTML(element.innerHTML || '');
+    }
+
+    return '';
 }
 
 function getHost(link) {
@@ -30,8 +35,17 @@ function getHost(link) {
         return  false;
     }
 }
-async function parseUrl(url, queries, cookieJar = false, ua = false, agent = false) {
-    let params = {responseType: 'buffer'};
+async function parseUrl(url, queries, cookieJar = false, ua = false, agent = false, skipSSLCheck = false) {
+    let params = {
+        responseType: 'buffer',
+        timeout: {
+            request: 15000,
+            response: 15000,
+        },
+        retry: {
+            limit: 1
+        }
+    };
     if (cookieJar) {
         params.cookieJar = cookieJar;
     }
@@ -46,7 +60,16 @@ async function parseUrl(url, queries, cookieJar = false, ua = false, agent = fal
         params.agent = {http: agent, https: agent};
     }
 
+    let tlsReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    if (skipSSLCheck) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    }
+
     const response = await got(url, params);
+    if (typeof (tlsReject) !== "undefined") {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = tlsReject;
+    }
+
     let html = response.body.toString();
 
     let charsetSearch = html.match(/\<meta[^>]*?charset=['"]*([a-zA-Z\-0-9]+)['"]/i);
@@ -105,6 +128,7 @@ async function checkAndParseNewItems() {
         { $match: {'nextParse': {$lte: now}} }
     ]).toArray();
 
+    let parsedProductsCount = [];
     for (let item of allItems) {
         let products = await parseWatchItem(item);
         await db.collection('parsedPrices').insertOne({
@@ -112,7 +136,36 @@ async function checkAndParseNewItems() {
             parsed: moment().unix(),
             products
         });
+
+        parsedProductsCount.push({
+            watchId: item._id,
+            productsCount: products.length,
+        });
     }
+
+    return parsedProductsCount;
 }
 
-module.exports = {getHost, parseUrl, checkAndParseNewItems, setRepeatingTask, innerText}
+async function checkAndParseAllItems() {
+    let db = await getDb();
+    let allItems = await db.collection('parse').find({'deleted': {$in: [null, false]}}).toArray();
+
+    let parsedProductsCount = [];
+    for (let item of allItems) {
+        let products = await parseWatchItem(item);
+        await db.collection('parsedPrices').insertOne({
+            watchId: item._id,
+            parsed: moment().unix(),
+            products
+        });
+
+        parsedProductsCount.push({
+            watchId: item._id,
+            productsCount: products.length,
+        });
+    }
+
+    return parsedProductsCount;
+}
+
+module.exports = {getHost, parseUrl, checkAndParseNewItems, checkAndParseAllItems, setRepeatingTask, innerText}
