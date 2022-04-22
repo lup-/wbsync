@@ -11,6 +11,8 @@
                         :options.sync="options"
                         :server-items-length="totalItems"
                         :items-per-page="50"
+                        fixed-header
+                        :height="$store.state.tableHeight"
                 >
                     <template v-slot:[`item.${domain}`]="{ item }" v-for="domain in domains">
                         {{item[domain]}}

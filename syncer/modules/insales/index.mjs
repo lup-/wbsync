@@ -98,7 +98,13 @@ export class InSales {
     async callGetMethod(method, params) {
         let url = this.apiBaseUrl + method;
         try {
-            let response = await axios.get(url, {params, auth: this.apiAuth()});
+            let response = await axios.get(url, {
+                params,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                auth: this.apiAuth()
+            });
             return response.data;
         }
         catch (e) {
@@ -337,7 +343,15 @@ export class InSales {
     async fetchStocksForDb(key) {
         let insalesProducts = await this.fetchProducts();
         debug('Fetched %s products', insalesProducts.length);
+        if (insalesProducts.length === 0) {
+            return null;
+        }
+
         let options = await this.fetchOptions();
+        if (!options) {
+            return null;
+        }
+
         debug('Fetched %s options', options.length);
         if (!options) {
             options = [];

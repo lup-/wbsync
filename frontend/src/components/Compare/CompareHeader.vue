@@ -11,7 +11,7 @@
                 <v-card-text>
                     <v-expansion-panels>
                         <v-expansion-panel v-for="download in downloadDetails" :key="download._id">
-                            <v-expansion-panel-header>
+                            <v-expansion-panel-header :color="download.isSuccess ? 'white' : 'error'">
                                 <v-row>
                                     <v-col cols="12" md="6" class="d-flex flex-column">
                                         <span>{{sourceTitle(download.key ? download.key.id : null)}}</span>
@@ -37,19 +37,19 @@
                                 <v-list-item>
                                     <v-list-item-content>
                                         <v-list-item-title>Новых товаров</v-list-item-title>
-                                        <v-list-item-subtitle>{{download.newItems}}</v-list-item-subtitle>
+                                        <v-list-item-subtitle>{{download.newItems || 0}}</v-list-item-subtitle>
                                     </v-list-item-content>
                                 </v-list-item>
                                 <v-list-item>
                                     <v-list-item-content>
                                         <v-list-item-title>Обновлено</v-list-item-title>
-                                        <v-list-item-subtitle>{{download.updatedItems}}</v-list-item-subtitle>
+                                        <v-list-item-subtitle>{{download.updatedItems || 0}}</v-list-item-subtitle>
                                     </v-list-item-content>
                                 </v-list-item>
                                 <v-list-item>
                                     <v-list-item-content>
                                         <v-list-item-title>Обработано</v-list-item-title>
-                                        <v-list-item-subtitle>{{download.count}}</v-list-item-subtitle>
+                                        <v-list-item-subtitle>{{download.count || 0}}</v-list-item-subtitle>
                                     </v-list-item-content>
                                 </v-list-item>
                             </v-expansion-panel-content>

@@ -14,8 +14,10 @@
                     :items-per-page="15"
                     multi-sort
                     show-select
+                    fixed-header
+                    :height="$store.state.tableHeight"
                     selectable-key="_id"
-                    item-key="barcode"
+                    item-key="_id"
                     locale="ru"
                     :footer-props="{'items-per-page-options': [15, 50, 100, 500, -1]}"
                 >
@@ -181,8 +183,8 @@
             headers() {
                 let baseHeaders = [
                     {text: 'Штрих-код', value: 'barcode'},
-                    {text: 'Артикул', value: 'sku'},
-                    {text: 'Название', value: 'title'},
+                    {text: 'Артикул', value: 'sku', width: '100'},
+                    {text: 'Название', value: 'title', width: '400'},
                     {text: 'Количество', value: 'quantity'},
                 ];
 
@@ -213,9 +215,11 @@
                         quantity: item.quantity
                     }
 
-                    for (let stock of item.stocks) {
-                        let id = stock.keyId ? stock.source+'.'+stock.keyId : stock.source;
-                        itemWithStocks[id] = stock.quantity || '';
+                    if (item.stocks) {
+                        for (let stock of item.stocks) {
+                            let id = stock.keyId ? stock.source + '.' + stock.keyId : stock.source;
+                            itemWithStocks[id] = stock.quantity || '';
+                        }
                     }
 
                     return itemWithStocks;

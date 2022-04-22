@@ -64,17 +64,19 @@ async function downloadStocksForKey(db, key, debug) {
         debug('Syncing Insales %s', key.title);
         let insales = new InSales(key.insales_api_id, key.insales_api_password, key.api_base);
         let insalesStocks = await insales.fetchStocksForDb(key);
-        count = insalesStocks.length;
+        count = insalesStocks ? insalesStocks.length : 0;
 
-        results = await syncCollectionItems(
-            db,
-            insalesStocks,
-            'stock',
-            'id',
-            'quantity',
-            null,
-            {source: 'insales', keyId: key.id}
-        );
+        if (count > 0) {
+            results = await syncCollectionItems(
+                db,
+                insalesStocks,
+                'stock',
+                'id',
+                'quantity',
+                null,
+                {source: 'insales', keyId: key.id}
+            );
+        }
     }
 
     if (key.type === 'wildberries') {

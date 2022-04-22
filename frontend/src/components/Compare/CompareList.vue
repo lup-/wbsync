@@ -1,10 +1,11 @@
 <template>
-    <v-container class="align-start">
+    <v-container class="align-start" ref="container">
         <h2 class="mb-4 text--secondary">Сравнение остатков</h2>
         <v-row align="start" justify="start">
             <v-col cols="12">
                 <v-data-table
                     dense
+                    ref="table"
                     v-model="selected"
                     :headers="headers"
                     :items="items"
@@ -14,13 +15,15 @@
                     :items-per-page="15"
                     multi-sort
                     show-select
+                    fixed-header
+                    :height="$store.state.tableHeight"
                     selectable-key="barcode"
                     item-key="barcode"
                     locale="ru"
                     :footer-props="{'items-per-page-options': [15, 50, 100, 500, -1]}"
                 >
                     <template v-slot:top>
-                        <filter-field v-model="filter" :fields="filterFields" label="Фильтр" outlined class="mb-6" @save="saveFilter"></filter-field>
+                        <filter-field ref="filter" v-model="filter" :fields="filterFields" label="Фильтр" outlined class="mb-6" @save="saveFilter"></filter-field>
                     </template>
                     <template v-slot:item.barcode="{item}">
                         {{(item.barcode instanceof Array) ? item.barcode.join(', ') : item.barcode}}
@@ -34,6 +37,7 @@
                     </template>
                     <template v-slot:footer.prepend>
                         <upload-stocks-dialog
+                            ref="footer"
                             v-model="upload"
                             :show="showUpload"
                             @show="toggleUploadDialog"
@@ -136,7 +140,7 @@
         methods: {
             initFilter() {
                 let defaultFilter = {onlyMatched: true, matchField: 'barcode', compareField: this.defaultCompareField};
-                let savedFilter = localStorage.getItem('savedCompareFilter');
+                let savedFilter = localStorage.getItem('savedCompareOldFilter');
                 if (!savedFilter) {
                     this.filter = defaultFilter;
                     return;
@@ -148,14 +152,14 @@
                 let defaultFilter = {orderType: ['FBS'], source: ['wildberries'], completed: false, canceled: false};
                 let savedFilter = localStorage.getItem('savedFilter');
                 if (!savedFilter) {
-                    this.filter = defaultFilter;
+                    this.ordersFilter = defaultFilter;
                     return;
                 }
 
                 this.ordersFilter = JSON.parse(savedFilter);
             },
             saveFilter() {
-                localStorage.setItem('savedCompareFilter', JSON.stringify(this.filter));
+                localStorage.setItem('savedCompareOldFilter', JSON.stringify(this.filter));
                 this.$store.commit('setSuccessMessage', 'Фильтр сохранен!');
             },
             downloadCsv() {
@@ -258,8 +262,8 @@
             headers() {
                 let baseHeaders = [
                     {text: 'Штрих-код', value: 'barcode'},
-                    {text: 'Артикул', value: 'sku'},
-                    {text: 'Название', value: 'title'},
+                    {text: 'Артикул', value: 'sku', width: '100'},
+                    {text: 'Название', value: 'title', width: '400'},
                     {text: 'Сколько в заказах', value: 'todaySum', sortable: false}
                 ];
 
@@ -304,37 +308,10 @@
             matchField() {
                 return this.filter.matchField || 'barcode';
             },
-            todayOrders() {
-                return this.loading
-                    ? []
-                    : this.$store.state.order.list || [];
-            },
             onlyUnequal() {
                 return typeof (this.filter.onlyUnequal) === 'boolean'
                     ? this.filter.onlyUnequal
                     : false;
-            },
-            onlyToday() {
-                return this.filter.ordersDateFrom > 0;
-            },
-            todayStockCount() {
-                let stockCount = {};
-                for (let order of this.todayOrders) {
-                    for (let product of order.products) {
-                        let id = product[this.matchField];
-                        if (typeof (stockCount[id]) === 'undefined') {
-                            stockCount[id] = product[this.compareField];
-                        }
-                        else {
-                            stockCount[id] += product[this.compareField];
-                        }
-                    }
-                }
-
-                return stockCount;
-            },
-            todayBarcodes() {
-                return Object.keys(this.todayStockCount);
             },
             uploadJobs() {
                 return this.$store.getters["job/uploadJobs"];

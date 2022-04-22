@@ -40,7 +40,7 @@ module.exports = {
             {$match: {type: 'downloadStocks'}},
             {$sort: {date: -1}},
             {$group: {
-                    _id: {type: "$type", key: "$key"},
+                    _id: {type: "$type", key: "$key._id"},
                     logs: {$push: "$$ROOT"}
                 }},
             {$addFields: {log: {$arrayElemAt: [ "$logs", 0 ]}}},

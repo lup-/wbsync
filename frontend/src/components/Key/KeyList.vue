@@ -10,6 +10,8 @@
                         :loading="loading"
                         :options.sync="options"
                         :server-items-length="totalItems"
+                        fixed-header
+                        :height="$store.state.tableHeight"
                         :items-per-page="50"
                 >
                     <template v-slot:item.actions="{ item }">

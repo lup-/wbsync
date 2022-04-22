@@ -11,6 +11,8 @@
                     :options.sync="options"
                     :server-items-length="totalItems"
                     :items-per-page="15"
+                    fixed-header
+                    :height="$store.state.tableHeight"
                     multi-sort
                     show-group-by
                     item-key="_id"

@@ -30,7 +30,8 @@ export default new Vuex.Store({
             {code: 'keyList', title: 'Ключи доступа', icon: 'mdi-key'},
             {code: 'usersList', title: 'Пользователи', icon: 'mdi-account'},
             {code: 'parse', title: 'Мониторинг цен', icon: 'mdi-eye'},
-        ]
+        ],
+        tableHeight: 530,
     },
     getters: {
         allowedRoutes(state, getters) {

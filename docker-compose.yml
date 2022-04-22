@@ -39,7 +39,8 @@ services:
       - ./backend:/var/www
     working_dir: /var/www
     environment:
-      - MONGO_HOST=mongo
+      - MONGO_HOST=${MONGO_HOST}
+      - MONGO_PORT=${MONGO_PORT}
       - MONGO_DB=wbsync
       - REDIS=redis
     command: npm run start

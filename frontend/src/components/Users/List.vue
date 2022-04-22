@@ -14,6 +14,8 @@
                         :items="users"
                         :loading="isLoading"
                         :items-per-page="50"
+                        fixed-header
+                        :height="$store.state.tableHeight"
                 >
                     <template v-slot:item.actions="{ item }">
                         <v-btn icon small @click="gotoUserEdit(item.id)"><v-icon>mdi-pencil</v-icon></v-btn>

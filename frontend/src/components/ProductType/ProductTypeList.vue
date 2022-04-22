@@ -1,6 +1,6 @@
 <template>
     <v-container class="align-start">
-        <h2 class="mb-4 text--secondary">Типы товаров</h2>
+        <h2 class="mb-4 text--secondary">Типы карточек товаров</h2>
         <v-row align="start" justify="start">
             <v-col cols="12">
                 <v-data-table
@@ -11,6 +11,8 @@
                         :options.sync="options"
                         :server-items-length="totalItems"
                         :items-per-page="50"
+                        fixed-header
+                        :height="$store.state.tableHeight"
                 >
                     <template v-slot:item.actions="{ item }">
                         <v-btn icon small @click="editItem(item)"><v-icon>mdi-pencil</v-icon></v-btn>
