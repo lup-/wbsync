@@ -68,7 +68,8 @@ export default function (params, extra = {}) {
                     query[NAME_ITEM] = item;
 
                     let response = await axios.post(API_UPDATE_URL, query);
-                    let isSuccess = response && response.data && response.data[NAME_ITEM] && response.data[NAME_ITEM].id;
+                    let isSuccess = response && response.data && response.data[NAME_ITEM] &&
+                        (response.data[NAME_ITEM].id || response.data[NAME_ITEM]._id);
                     if (isSuccess) {
                         commit('setSuccessMessage', 'Данные сохранены!', { root: true });
                     }

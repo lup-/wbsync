@@ -406,7 +406,7 @@ module.exports = {
         if (!downloadAsCsv) {
             cursor = cursor.skip(offset);
 
-            if (limit !== -1) {
+            if (limit > 0) {
                 cursor = cursor.limit(limit);
             }
         }
@@ -447,7 +447,7 @@ module.exports = {
         });
 
         let totalCount = items.length;
-        if (limit !== -1) {
+        if (limit > 0) {
             pipeline = pipeline.filter(stage => ['$skip', '$limit'].indexOf(Object.keys(stage)[0]) === -1)
             pipeline.push({$count: 'totalDocuments'});
 
@@ -459,8 +459,10 @@ module.exports = {
         if (onlyUnequal) {
             frontendItems = frontendItems.filter(item => item.allValuesEqual === false && item.allValuesZero === false);
             totalCount = frontendItems.length;
-            frontendItems = frontendItems.splice(inputOffset, inputLimit);
-            compareItems = compareItems.splice(inputOffset, inputLimit);
+            if (inputLimit > 0) {
+                frontendItems = frontendItems.splice(inputOffset, inputLimit);
+                compareItems = compareItems.splice(inputOffset, inputLimit);
+            }
         }
 
         if (downloadAsCsv) {

@@ -4,6 +4,9 @@
             <v-col cols="12">
                 <v-text-field v-model="title" label="Название поставки"></v-text-field>
                 <v-select v-model="supplyTypeId" :items="supplyTypes" label="Шаблон загрузки"></v-select>
+                <date-editor v-model="item.supplyDate" label="Дата поставки"></date-editor>
+                <date-editor v-model="item.docDate" label="Дата документа"></date-editor>
+                <v-text-field v-model="item.docNumber" label="Номер документа"></v-text-field>
                 <v-file-input
                     v-model="file"
                     label="Файл с товарами в поставке"
@@ -17,11 +20,15 @@
 </template>
 
 <script>
+import clone from "lodash.clonedeep";
+import DateEditor from "@/components/DateEditor";
+
 export default {
     props: ['value'],
+    components: {DateEditor},
     data() {
         return {
-            item: this.value || {},
+            item: clone(this.value) || {},
             title: '',
             file: null,
             supplyTypeId: null,
@@ -60,7 +67,7 @@ export default {
             this.$emit('input', Object.assign(this.item, {
                 supplyTypeId: this.supplyTypeId,
                 title: this.title,
-                file: this.file,
+                file: this.file
             }));
         },
     },

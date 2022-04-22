@@ -13,6 +13,7 @@ import UserEdit from "../components/Users/Edit";
 import ProductTypeList from "@/components/ProductType/ProductTypeList";
 import SupplyTypeList from "@/components/SupplyType/SupplyTypeList";
 import SupplyList from "@/components/Supply/SupplyList";
+import ProductList from "@/components/Product/ProductList";
 import ParseList from "@/components/ParseProducts/ParseList";
 
 import CompareHeader from "@/components/Compare/CompareHeader";
@@ -34,6 +35,7 @@ const routes = [
     { name: 'productTypeList', path: '/productType/', components: {content: ProductTypeList}, meta: {requiresAuth: true, group: 'productTypeList'} },
     { name: 'supplyTypeList', path: '/supplyType/', components: {content: SupplyTypeList}, meta: {requiresAuth: true, group: 'supplyTypeList'} },
     { name: 'supplyList', path: '/supply/', components: {content: SupplyList}, meta: {requiresAuth: true, group: 'supplyList'} },
+    { name: 'productList', path: '/product/', components: {content: ProductList}, meta: {requiresAuth: true, group: 'productList'} },
     { name: 'usersList', path: '/users/', components: {content: UsersList}, meta: {requiresAuth: true, group: 'usersList'} },
     { name: 'userNew', path: '/user/new', components: {content: UserEdit}, meta: {requiresAuth: true, group: 'usersList'} },
     { name: 'userEdit', path: '/user/:id', components: {content: UserEdit}, meta: {requiresAuth: true, group: 'usersList'} },

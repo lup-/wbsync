@@ -9,6 +9,7 @@ import job from "@/store/modules/job";
 import productType from "@/store/modules/productType";
 import supplyType from "@/store/modules/supplyType";
 import supply from "@/store/modules/supply";
+import product from "@/store/modules/product";
 import parse from "@/store/modules/parse";
 
 Vue.use(Vuex);
@@ -24,6 +25,7 @@ export default new Vuex.Store({
             {code: 'supplyTypeList', title: 'Типы поставок', icon: 'mdi-swap-vertical'},
             {code: 'supplyList', title: 'Поставки', icon: 'mdi-truck'},
             {code: 'stockList', title: 'Остатки', icon: 'mdi-tshirt-v'},
+            {code: 'productList', title: 'Товары в базе', icon: 'mdi-tshirt-v-outline'},
             {code: 'compareList', title: 'Сравнение остатков', icon: 'mdi-compare'},
             {code: 'oldCompareList', title: 'Старое сравнение остатков', icon: 'mdi-compare-remove'},
             {code: 'orderList', title: 'Заказы', icon: 'mdi-cart'},
@@ -65,6 +67,7 @@ export default new Vuex.Store({
         productType,
         supplyType,
         supply,
+        product,
         parse
     }
 })
