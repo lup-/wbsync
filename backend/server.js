@@ -10,6 +10,7 @@ const users = require('./routes/users');
 const job = require('./routes/job');
 const productType = require('./routes/productType');
 const supplyType = require('./routes/supplyType');
+const exportType = require('./routes/exportType');
 const product = require('./routes/product');
 const supply = require('./routes/supply');
 const parse = require('./routes/parse');
@@ -42,6 +43,13 @@ router
     .post('/api/supplyType/add', supplyType.add.bind(supplyType))
     .post('/api/supplyType/update', supplyType.update.bind(supplyType))
     .post('/api/supplyType/delete', supplyType.delete.bind(supplyType));
+
+router
+    .post('/api/exportType/list', exportType.list.bind(exportType))
+    .post('/api/exportType/add', exportType.add.bind(exportType))
+    .post('/api/exportType/update', exportType.update.bind(exportType))
+    .post('/api/exportType/delete', exportType.delete.bind(exportType))
+    .post('/api/export', exportType.exportProducts.bind(exportType));
 
 router
     .post('/api/supply/list', supply.list.bind(supply))

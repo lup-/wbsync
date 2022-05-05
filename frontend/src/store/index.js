@@ -8,6 +8,7 @@ import order from "./modules/order";
 import job from "@/store/modules/job";
 import productType from "@/store/modules/productType";
 import supplyType from "@/store/modules/supplyType";
+import exportType from "@/store/modules/exportType";
 import supply from "@/store/modules/supply";
 import product from "@/store/modules/product";
 import parse from "@/store/modules/parse";
@@ -21,8 +22,9 @@ export default new Vuex.Store({
         loading: false,
         routes: [
             {code: 'home', title: 'Панель управления', icon: 'mdi-home'},
-            {code: 'productTypeList', title: 'Типы товаров', icon: 'mdi-package-variant-closed'},
-            {code: 'supplyTypeList', title: 'Типы поставок', icon: 'mdi-swap-vertical'},
+            {code: 'productTypeList', title: 'Типы карточек товаров', icon: 'mdi-package-variant-closed'},
+            {code: 'supplyTypeList', title: 'Шаблоны загрузок', icon: 'mdi-swap-vertical'},
+            {code: 'exportTypeList', title: 'Шаблоны экспорта', icon: 'mdi-database-export'},
             {code: 'supplyList', title: 'Поставки', icon: 'mdi-truck'},
             {code: 'stockList', title: 'Остатки', icon: 'mdi-tshirt-v'},
             {code: 'productList', title: 'Товары в базе', icon: 'mdi-tshirt-v-outline'},
@@ -66,6 +68,7 @@ export default new Vuex.Store({
         job,
         productType,
         supplyType,
+        exportType,
         supply,
         product,
         parse

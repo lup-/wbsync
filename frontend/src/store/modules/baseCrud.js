@@ -23,7 +23,7 @@ export default function (params, extra = {}) {
         getters: {
             byId(state) {
                 return itemId => {
-                    return state.list.find(item => item._id === itemId);
+                    return state.list.find(item => item._id === itemId || item.id === itemId);
                 }
             }
         },

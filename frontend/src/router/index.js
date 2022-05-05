@@ -12,6 +12,7 @@ import UsersList from "../components/Users/List";
 import UserEdit from "../components/Users/Edit";
 import ProductTypeList from "@/components/ProductType/ProductTypeList";
 import SupplyTypeList from "@/components/SupplyType/SupplyTypeList";
+import ExportTypeList from "@/components/ExportType/ExportTypeList";
 import SupplyList from "@/components/Supply/SupplyList";
 import ProductList from "@/components/Product/ProductList";
 import ParseList from "@/components/ParseProducts/ParseList";
@@ -34,6 +35,7 @@ const routes = [
     { name: 'keyList', path: '/key/', components: {content: KeyList}, meta: {requiresAuth: true, group: 'keyList'} },
     { name: 'productTypeList', path: '/productType/', components: {content: ProductTypeList}, meta: {requiresAuth: true, group: 'productTypeList'} },
     { name: 'supplyTypeList', path: '/supplyType/', components: {content: SupplyTypeList}, meta: {requiresAuth: true, group: 'supplyTypeList'} },
+    { name: 'exportTypeList', path: '/exportType/', components: {content: ExportTypeList}, meta: {requiresAuth: true, group: 'exportTypeList'} },
     { name: 'supplyList', path: '/supply/', components: {content: SupplyList}, meta: {requiresAuth: true, group: 'supplyList'} },
     { name: 'productList', path: '/product/', components: {content: ProductList}, meta: {requiresAuth: true, group: 'productList'} },
     { name: 'usersList', path: '/users/', components: {content: UsersList}, meta: {requiresAuth: true, group: 'usersList'} },

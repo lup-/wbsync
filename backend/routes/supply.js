@@ -125,6 +125,13 @@ function parseProducts(csv, supplyType, productType) {
 
     return products;
 }
+function addSupplyId(products, supplyId) {
+    return products.map(product => {
+        product.supplyId = supplyId;
+        return product;
+    });
+}
+
 
 module.exports = {
     async list(ctx) {
@@ -243,13 +250,27 @@ module.exports = {
                 {$project: {rawCsv: 0, parsedCsv: 0}}
             ])
             .toArray();
+        let fullSupply = await db.collection('supplies').findOne({id: supply.id});
 
+        let hasProducts = supplyProducts && supplyProducts.length > 0;
         let supplyType = await db.collection('supplyTypes').findOne({id: supply.supplyTypeId});
         let productType = await db.collection('productTypes').findOne({id: supplyType.productTypeId});
+        if (!hasProducts && fullSupply.parsedCsv && fullSupply.parsedCsv.length > 0) {
+            let products = parseProducts(fullSupply.parsedCsv, supplyType, productType);
+            products = addSupplyId(products, fullSupply.id);
+
+            await db.collection('supplyProducts').insertMany(products);
+            supplyProducts = await db.collection('supplyProducts')
+                .aggregate([
+                    {$match: filter},
+                    {$project: {rawCsv: 0, parsedCsv: 0}}
+                ])
+                .toArray();
+        }
 
         let syncResult = false;
         let error = false;
-        if (supplyProducts && supplyProducts.length > 0) {
+        if (hasProducts) {
             let products = prepareProducts(supplyProducts, productType)
                 .filter(product => product.barcode && product.barcode.length > 0);
 
@@ -306,10 +327,7 @@ module.exports = {
 
         let result = await db.collection(COLLECTION_NAME).insertOne(itemFields);
         let supply = result.ops[0];
-        products = products.map(product => {
-            product.supplyId = supplyId;
-            return product;
-        });
+        products = addSupplyId(products, supplyId);
 
         let productResults = await db.collection('supplyProducts').insertMany(products);
 
@@ -335,17 +353,24 @@ module.exports = {
             updated: moment().unix(),
         };
 
-        if (file) {
-            let supplyTypeId = itemFields.supplyTypeId;
-            let supplyType = await db.collection('supplyTypes').findOne({id: supplyTypeId});
-            let productType = await db.collection('productTypes').findOne({id: supplyType.productTypeId});
+        let savedProducts = await db.collection('supplyProducts').find({supplyId: itemFields.id}).toArray();
 
+        let supplyTypeId = itemFields.supplyTypeId;
+        let supplyType = await db.collection('supplyTypes').findOne({id: supplyTypeId});
+        let productType = await db.collection('productTypes').findOne({id: supplyType.productTypeId});
+
+        if (file) {
             let {rawCsv, parsedCsv} = await prepareCsv(file, supplyType);
             products = parseProducts(parsedCsv, supplyType, productType);
+            products = addSupplyId(products, itemFields.id);
             additionalUpdatedFields = Object.assign(additionalUpdatedFields, {
                 rawCsv,
                 parsedCsv
             });
+        }
+        else if (savedProducts.length === 0 && itemFields.parsedCsv && itemFields.parsedCsv.length > 0) {
+            products = parseProducts(itemFields.parsedCsv, supplyType, productType);
+            products = addSupplyId(products, itemFields.id);
         }
 
         itemFields = Object.assign(itemFields, additionalUpdatedFields);
