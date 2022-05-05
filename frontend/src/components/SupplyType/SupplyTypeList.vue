@@ -71,6 +71,7 @@
 
                 headers: [
                   {text: 'Название', value: 'title'},
+                  {text: 'Тип продукта', value: 'productType'},
                   {text: 'Действия', value: 'actions', sortable: false, width: '20%'},
                 ],
             }
@@ -117,14 +118,28 @@
                 return this.editedItem && !this.editedItem._id;
             },
             items() {
-                return this.loading
-                    ? []
-                    : this.$store.state.supplyType.list;
+                if (this.loading) {
+                    return [];
+                }
+
+                let typeMap = this.productTypes.reduce((typeMap, type) => {
+                    typeMap[type.id] = type.title;
+                    return typeMap;
+                }, {})
+
+                return this.$store.state.supplyType.list.map(supplyType => {
+                    supplyType.productType = typeMap[supplyType.productTypeId];
+                    return supplyType;
+                });
             },
             totalItems() {
                 return this.items.length;
-            }
-
+            },
+            productTypes() {
+                return this.loading
+                    ? []
+                    : this.$store.state.productType.list;
+            },
         }
     }
 </script>

@@ -155,7 +155,27 @@ module.exports = {
         let cursor = db.collection(COLLECTION_NAME)
             .aggregate([
                 {$match: filter},
-                {$project: {rawCsv: 0, parsedCsv: 0}}
+                {$lookup: {
+                    from: 'supplyProducts',
+                    let: {searchSupplyId: '$id'},
+                    as: "products",
+                    pipeline: [
+                        { $match: {$expr: {$eq: ['$supplyId', '$$searchSupplyId']} }},
+                    ]
+                }},
+                {$addFields: {
+                    rawProducts: {$cond: {
+                        if: {$isArray: '$products'},
+                        then: {$size: '$products'},
+                        else: 0
+                    }},
+                    rawLines: {$cond: {
+                        if: {$isArray: '$parsedCsv'},
+                        then: {$size: '$parsedCsv'},
+                        else: 0
+                    }}
+                }},
+                {$project: {rawCsv: 0, parsedCsv: 0, products: 0}}
             ]);
 
         if (Object.keys(sort).length > 0) {

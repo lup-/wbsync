@@ -3,14 +3,30 @@
         <v-row>
             <v-col cols="12">
                 <v-text-field v-model="title" label="Название типа экспорта"></v-text-field>
-                <v-select v-model="productTypeId" :items="productTypes" label="Тип товаров"></v-select>
-                <v-select v-model="supplyTypeId" :items="supplyTypes" label="Тип загрузки для дополнительных полей"></v-select>
+                <v-select v-model="productTypeId"
+                          :items="productTypes"
+                          label="Тип товаров"
+                          clearable
+                          hint="Если пусто, то будут выгружены все типы товаров"
+                          persistent-hint
+                          class="mb-4"
+                ></v-select>
+                <v-select v-model="supplyTypeId"
+                          :items="supplyTypes"
+                          clearable
+                          label="Тип загрузки для дополнительных полей"
+                          hint="Если пусто, то можно использовать любой тип поставки"
+                          persistent-hint
+                          class="mb-4"
+                ></v-select>
                 <v-select v-model="separator" :items="separators" label="Разделитель"></v-select>
                 <v-select v-model="codepage" :items="codepages" label="Кодировка"></v-select>
                 <v-checkbox v-model="addHeader" label="Добавить заголовок"></v-checkbox>
                 <v-select v-model="fields"
                           :items="availableFields"
                           label="Поля для экспорта"
+                          hint="Если пусто, то будут выгружены все доступные поля"
+                          persistent-hint
                           multiple
                           chips
                           deletable-chips
@@ -186,9 +202,9 @@ export default {
     computed: {
         productTypes() {
             return this.$store.state.productType.list.map(productType => ({
-                text: productType.title,
-                value: productType.id,
-            }));
+                    text: productType.title,
+                    value: productType.id,
+                }));
         },
         supplyTypes() {
             let supplyTypes = this.$store.state.supplyType.list;

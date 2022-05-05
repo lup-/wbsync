@@ -14,6 +14,10 @@
                         fixed-header
                         :height="$store.state.tableHeight"
                 >
+                    <template v-slot:item.supplyDate="{item}">{{item.supplyDate > 0? moment.unix(item.supplyDate).format(dateFormat) : ''}}</template>
+                    <template v-slot:item.created="{item}">{{item.created > 0 ? moment.unix(item.created).format(dateFormat) : ''}}</template>
+                    <template v-slot:item.accepted="{item}">{{item.accepted > 0 ? moment.unix(item.accepted).format(dateFormat) : ''}}</template>
+                    <template v-slot:item.docDate="{item}">{{item.docDate > 0 ? moment.unix(item.docDate).format(dateFormat) : ''}}</template>
                     <template v-slot:item.actions="{ item }">
                         <v-btn icon small @click="toggleAcceptDialog(item)" v-if="!isAccepted(item)">
                             <v-icon>mdi-check</v-icon>
@@ -83,6 +87,7 @@
 </template>
 
 <script>
+    import moment from "moment";
     import SupplyEditForm from "@/components/Supply/SupplyEditForm";
     import AcceptDialog from "@/components/Supply/AcceptDialog";
 
@@ -90,6 +95,8 @@
         components: {SupplyEditForm, AcceptDialog},
         data() {
             return {
+                moment: moment,
+                dateFormat: 'DD.MM.YYYY',
                 defaultItem: {},
                 editedItem: null,
 
@@ -104,8 +111,17 @@
                 selectedSupply: null,
 
                 headers: [
-                  {text: 'Название', value: 'title'},
-                  {text: 'Действия', value: 'actions', sortable: false, width: '20%'},
+                    {text: 'Название', value: 'title'},
+                    {text: "Дата поставки", value: "supplyDate"},
+                    {text: "Дата создания", value: "created"},
+                    {text: "Дата импорта", value: "accepted"},
+                    {text: "Дата документа", value: "docDate"},
+                    {text: "Номер документа", value: "docNumber"},
+                    {text: "Тип поставки", value: "supplyType"},
+                    {text: "Тип товара", value: "productType"},
+                    {text: "Строк в загрузке", value: "rawLines"},
+                    {text: "Товаров в загрузке", value: "rawProducts"},
+                    {text: 'Действия', value: 'actions', sortable: false, width: '20%'},
                 ],
             }
         },
@@ -124,6 +140,7 @@
             async loadItems() {
                 this.loading = true;
                 await this.$store.dispatch('supply/loadItems');
+                await this.$store.dispatch('supplyType/loadItems');
                 await this.$store.dispatch('productType/loadItems');
                 this.loading = false;
             },
@@ -179,8 +196,11 @@
             },
             async save() {
                 if (this.editedItem !== null) {
+                    let item = this.editedItem;
+                    delete item['rawLines'];
+                    delete item['rawProducts'];
                     let saveAction = this.isNewEditing ? 'supply/newItem' : 'supply/saveItem';
-                    await this.$store.dispatch(saveAction, this.editedItem);
+                    await this.$store.dispatch(saveAction, item);
                 }
 
                 this.close();
@@ -192,9 +212,31 @@
                 return this.editedItem && !this.editedItem._id;
             },
             items() {
-                return this.loading
-                    ? []
-                    : this.$store.state.supply.list;
+                if (this.loading) {
+                    return [];
+                }
+
+                let supplyTypes = this.$store.state.supplyType.list || [];
+                let productTypes = this.$store.state.productType.list || [];
+
+                let typeMap = supplyTypes.reduce((typeMap, type) => {
+                    typeMap[type.id] = type;
+                    return typeMap;
+                }, {});
+
+                let productTypeMap = productTypes.reduce((typeMap, type) => {
+                    typeMap[type.id] = type;
+                    return typeMap;
+                }, {});
+
+                return this.$store.state.supply.list.map(supply => {
+                    let supplyType = typeMap[supply.supplyTypeId] || null;
+                    let productType = supplyType ? productTypeMap[supplyType.productTypeId] || null : null;
+                    supply.supplyType = supplyType ? supplyType.title : null;
+                    supply.productType = productType ? productType.title : null;
+
+                    return supply;
+                });
             },
             totalItems() {
                 return this.$store.state.supply.totalCount || 0;

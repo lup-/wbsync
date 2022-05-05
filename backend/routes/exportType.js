@@ -7,10 +7,11 @@ const COLLECTION_NAME = 'exportTypes';
 const ITEM_NAME = 'exportType';
 const ITEMS_NAME = 'exportTypes';
 
-function getExportedFields(product, exportType) {
+function getExportedFields(product, exportType, fields) {
     let exportedFields = [];
     let takeFromSupply = exportType.takeFromSupply || [];
-    for (let fieldCode of exportType.fields) {
+    for (let field of fields) {
+        let fieldCode = field.code;
         let value = product[fieldCode] || product.props[fieldCode] || null;
         if (takeFromSupply.includes(fieldCode)) {
             value = product.supply[fieldCode] || null;
@@ -29,12 +30,18 @@ function getExportedFields(product, exportType) {
 
     return exportedFields;
 }
-function aggregateSupplyProducts(products, productType) {
+function aggregateSupplyProducts(products, productTypes) {
     let aggregatedFieldCodes = [];
-    if (productType) {
-        aggregatedFieldCodes = productType.fields
-            .filter(field => field.type === 'quantity')
-            .map(field => field.code);
+    if (productTypes) {
+        for (let productType of productTypes) {
+            if (productType.fields) {
+                for (let field of productType.fields) {
+                    if (field.type === 'quantity') {
+                        aggregatedFieldCodes.push(field.code);
+                    }
+                }
+            }
+        }
     }
 
     let productsWithAggregatedSupply = [];
@@ -177,19 +184,19 @@ module.exports = {
             ? options.supply.id || null
             : null;
 
-        let supplyType = exportType.supplyTypeId
-            ? await db.collection('supplyTypes').findOne({id: exportType.supplyTypeId})
+        let supplyTypes = exportType.supplyTypeId
+            ? await db.collection('supplyTypes').find({id: exportType.supplyTypeId}).toArray()
             : null;
-        let productType = exportType.productTypeId
-            ? await db.collection('productTypes').findOne({id: exportType.productTypeId})
-            : null;
+        let productTypes = exportType.productTypeId
+            ? await db.collection('productTypes').find({id: exportType.productTypeId}).toArray()
+            : await db.collection('productTypes').find().toArray();
 
         let pipeline = [];
-        if (productType) {
+        if (exportType.productTypeId) {
             pipeline.push({$match: {productTypeId: exportType.productTypeId}});
         }
 
-        if (supplyId && exportType.takeFromSupply && exportType.takeFromSupply.length > 0) {
+        if (supplyId) {
             pipeline.push({$lookup: {
                 from: 'supplyProducts',
                 let: {srcBarcodes: '$barcode'},
@@ -220,31 +227,28 @@ module.exports = {
         if (!exportProducts) {
             exportProducts = [];
         }
-        exportProducts = aggregateSupplyProducts(exportProducts, productType);
+        exportProducts = aggregateSupplyProducts(exportProducts, productTypes);
 
         let csvFields = [];
+        let allFields = productTypes.reduce((allFields, productType) => {
+            return allFields.concat(productType.fields || []);
+        }, []);
+
+        let fields = allFields.filter(field => {
+            return exportType && exportType.fields && exportType.fields.length > 0
+                ? exportType.fields.includes(field.code)
+                : true;
+        });
+
         if (exportType.addHeader) {
-            let fieldNames = exportType.fields.map(fieldCode => {
-                if (!productType) {
-                    return fieldCode;
-                }
-
-                if (!productType.fields) {
-                    return fieldCode;
-                }
-
-                let field = productType.fields.find(searchField => searchField.code === fieldCode);
-                if (!field) {
-                    return fieldCode;
-                }
-
+            let fieldNames = fields.map(field => {
                 return field.title;
             });
 
             csvFields.push(fieldNames);
         }
         for (let product of exportProducts) {
-            csvFields.push( getExportedFields(product, exportType) );
+            csvFields.push( getExportedFields(product, exportType, fields) );
         }
 
         let separator = exportType.separator || ';';

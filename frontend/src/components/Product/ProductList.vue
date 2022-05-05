@@ -75,6 +75,7 @@
                 headers: [
                     {text: 'Штрихкод', value: 'barcode'},
                     {text: 'Название', value: 'title'},
+                    {text: 'Тип', value: 'productType'},
                     {text: 'Действия', value: 'actions', sortable: false, width: '20%'},
                 ],
             }
@@ -154,9 +155,19 @@
                 return this.editedItem && !this.editedItem._id;
             },
             items() {
-                return this.loading
-                    ? []
-                    : this.$store.state.product.list;
+                if (this.loading) {
+                    return [];
+                }
+
+                let typeMap = this.productTypes.reduce((typeMap, type) => {
+                    typeMap[type.id] = type.title;
+                    return typeMap;
+                }, {})
+
+                return this.$store.state.product.list.map(product => {
+                    product.productType = typeMap[product.productTypeId];
+                    return product;
+                });
             },
             editedProductType() {
                 if (!this.editedItem || !this.productTypes) {

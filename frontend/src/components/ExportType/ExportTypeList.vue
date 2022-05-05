@@ -128,13 +128,7 @@
                 this.exportOptions = {
                     exportTypeId: item.id,
                 }
-
-                if (item.supplyTypeId) {
-                    this.exportDialog = true;
-                }
-                else {
-                    return this.exportProducts();
-                }
+                this.exportDialog = true;
             },
 
             close() {
