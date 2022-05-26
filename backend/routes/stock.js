@@ -287,6 +287,7 @@ module.exports = {
         let matchField = ctx.request.body.matchField || 'barcode';
         let compareField = ctx.request.body.compareField || 'quantity';
         let downloadAsCsv = ctx.request.body.downloadAsCsv || false;
+        let compareSources = ctx.request.body.compareSources || [];
 
         if (onlyUnequal) {
             limit = -1;
@@ -379,10 +380,35 @@ module.exports = {
             notEmptyMatchFieldFilter[matchField] = {$nin: [null, false, '']};
         }
 
+        let sourceFilter = {};
+        if (compareSources && compareSources.length > 0) {
+            let sources = compareSources.filter(source => source.indexOf('.') === -1);
+            let keys = compareSources.filter(source => !sources.includes(source)).map(source => {
+                let [code, keyId] = source.split('.');
+                return keyId;
+            });
+
+            if (sources.length > 0 && keys.length > 0) {
+                sourceFilter = {
+                    $or: [
+                        {source: {$in: sources}},
+                        {keyId: {$in: keys}}
+                    ]
+                }
+            }
+            else if (sources.length > 0) {
+                sourceFilter = {source: {$in: sources}};
+            }
+            else if (keys.length > 0) {
+                sourceFilter = {keyId: {$in: keys}};
+            }
+        }
+
         let pipeline = [
             { $match: notEmptyMatchFieldFilter },
             { $match: filter },
             { $match: barcodeFilter },
+            { $match: sourceFilter },
             { $addFields: {
                 barcodeOrSku: {$cond: {if: {$in: ["$barcode", ["", null, false]]}, then: "$sku", else: "$barcode"}}
             } },
@@ -413,6 +439,26 @@ module.exports = {
 
         let items = await cursor.toArray();
         let uniqueKeySources = getUniqueKeySources(items);
+
+        let allKeySourcesPipeline = pipeline.concat([
+            { "$unwind": "$stocks" },
+            { "$group": {"_id": {"source": "$stocks.source", "keyId": "$stocks.keyId"}} },
+            { "$sort": {"_id.source": 1, "_id.keyId": 1}}
+        ]);
+        let sourcesFilterStageIndex = 3;
+        allKeySourcesPipeline.splice(sourcesFilterStageIndex, 1);
+
+        let allKeySources = (await db.collection(COLLECTION_NAME)
+            .aggregate(allKeySourcesPipeline, { allowDiskUse: true })
+            .toArray())
+            .map(keySource => {
+                let id = [keySource._id.source, keySource._id.keyId].filter(part => Boolean(part)).join('.');
+                return {
+                    id,
+                    source: keySource._id.source,
+                    keyId: keySource._id.keyId || null
+                }
+            });
 
         let compareItems = items.map(item => {
             let compareItem = {
@@ -481,8 +527,11 @@ module.exports = {
                 {text: 'Штрих-код', value: 'barcode'},
                 {text: 'Артикул', value: 'sku'},
                 {text: 'Название', value: 'title'},
-                {text: 'Сколько в заказах', value: 'todaySum', sortable: false}
             ];
+
+            if (compareSources.length === 0 || compareSources.includes('todaySum')) {
+                jsonFields.push({text: 'Сколько в заказах', value: 'todaySum', sortable: false});
+            }
 
             let compareHeaders = uniqueKeySources.map(variant => ({
                 text: variant.keyId ? keyTitles[variant.keyId] : variant.source,
@@ -512,7 +561,7 @@ module.exports = {
             response[ITEMS_NAME] = compareItems;
             response['compare'] = frontendItems;
             response['totalCount'] = totalCount;
-            response['variants'] = uniqueKeySources;
+            response['variants'] = allKeySources;
 
             ctx.body = response;
         }
@@ -536,6 +585,31 @@ module.exports = {
             ? Boolean(ctx.request.body.onlyUnequal)
             : false;
 
+        let compareSources = ctx.request.body.compareSources || [];
+        let sourceFilter = {};
+        if (compareSources && compareSources.length > 0) {
+            let sources = compareSources.filter(source => source.indexOf('.') === -1);
+            let keys = compareSources.filter(source => !sources.includes(source)).map(source => {
+                let [code, keyId] = source.split('.');
+                return keyId;
+            });
+
+            if (sources.length > 0 && keys.length > 0) {
+                sourceFilter = {
+                    $or: [
+                        {"stock.source": {$in: sources}},
+                        {"stock.keyId": {$in: keys}}
+                    ]
+                }
+            }
+            else if (sources.length > 0) {
+                sourceFilter = {"stock.source": {$in: sources}};
+            }
+            else if (keys.length > 0) {
+                sourceFilter = {"stock.keyId": {$in: keys}};
+            }
+        }
+
         let defaultFilter = {
             'deleted': {$in: [null, false]}
         };
@@ -552,6 +626,7 @@ module.exports = {
                 as: "stock"
             } },
             { $unwind: '$stock' },
+            { $match: sourceFilter },
             { $group: {
                 _id: '$_id',
                 title: {$first: '$title'},
@@ -603,6 +678,26 @@ module.exports = {
         let items = await cursor.toArray();
         let uniqueKeySources = getUniqueKeySources(items);
 
+        let allKeySourcesPipeline = pipeline.concat([
+            { "$unwind": "$stocks" },
+            { "$group": {"_id": {"source": "$stocks.source", "keyId": "$stocks.keyId"}} },
+            { "$sort": {"_id.source": 1, "_id.keyId": 1}}
+        ]);
+        let sourcesFilterStageIndex = 4;
+        allKeySourcesPipeline.splice(sourcesFilterStageIndex, 1);
+
+        let allKeySources = (await db.collection('products')
+            .aggregate(allKeySourcesPipeline, { allowDiskUse: true })
+            .toArray())
+            .map(keySource => {
+                let id = [keySource._id.source, keySource._id.keyId].filter(part => Boolean(part)).join('.');
+                return {
+                    id,
+                    source: keySource._id.source,
+                    keyId: keySource._id.keyId || null
+                }
+            });
+
         let totalCount = items.length;
         if (limit !== -1) {
             pipeline = pipeline.filter(stage => ['$skip', '$limit'].indexOf(Object.keys(stage)[0]) === -1)
@@ -625,6 +720,11 @@ module.exports = {
                 {text: 'Артикул', value: 'sku'},
                 {text: 'Название', value: 'title'}
             ];
+
+            let addQuantity = !compareSources || (compareSources && compareSources.includes('quantity'));
+            if (addQuantity) {
+                jsonFields.push({text: 'Внутренняя база', value: 'quantity'});
+            }
 
             let compareHeaders = uniqueKeySources.map(variant => ({
                 text: variant.keyId ? keyTitles[variant.keyId] : variant.source,
@@ -649,7 +749,7 @@ module.exports = {
             ctx.body = {
                 'compare': items,
                 'totalCount': totalCount,
-                'variants': uniqueKeySources,
+                'variants': allKeySources,
             };
         }
     },

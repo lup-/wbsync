@@ -105,7 +105,12 @@
         },
         methods: {
             initFilter() {
-                let defaultFilter = {onlyMatched: true, matchField: 'barcode', compareField: this.defaultCompareField};
+                let defaultFilter = {
+                    onlyMatched: true,
+                    matchField: 'barcode',
+                    compareField: this.defaultCompareField,
+                };
+
                 let savedFilter = localStorage.getItem('savedProductCompareFilter');
                 if (!savedFilter) {
                     this.filter = defaultFilter;
@@ -153,6 +158,10 @@
                     onlyUnequal: this.filter.onlyUnequal,
                 };
 
+                if (this.filter.compareSources) {
+                    params.compareSources = this.filter.compareSources;
+                }
+
                 await this.$store.dispatch('stock/loadProductCompareItems', {filter, sort, limit, offset, params});
                 if (downloadAsCsv) {
                     this.downloading = false;
@@ -180,19 +189,41 @@
                     return aggr;
                 }, {});
             },
+            compareSources() {
+                return this.$store.state.stock.compareVariants || [];
+            },
+            compareSourcesForSelect() {
+                let externalSources = this.compareSources
+                    .map(variant => ({
+                        text: variant.keyId ? this.keys[variant.keyId] : variant.source,
+                        value: variant.id,
+                    }))
+                    .filter(item => {
+                        return Boolean(item.text);
+                    });
+
+                let internalSources = [{text: 'Внутренняя база', value: 'quantity'}];
+
+                return internalSources.concat(externalSources);
+            },
             headers() {
                 let baseHeaders = [
                     {text: 'Штрих-код', value: 'barcode'},
                     {text: 'Артикул', value: 'sku', width: '100'},
                     {text: 'Название', value: 'title', width: '400'},
-                    {text: 'Количество', value: 'quantity'},
                 ];
 
-                let variants = this.$store.state.stock.compareVariants || [];
-                let compareHeaders = variants.map(variant => ({
-                    text: variant.keyId ? this.keys[variant.keyId] : variant.source,
-                    value: variant.id,
-                }));
+                let hasSelectedCompareSources = this.filter &&
+                    this.filter.compareSources &&
+                    this.filter.compareSources.length > 0;
+
+                let compareHeaders = this.compareSourcesForSelect;
+
+                if (hasSelectedCompareSources) {
+                    compareHeaders = this.compareSourcesForSelect.filter(source => {
+                        return this.filter.compareSources.includes(source.value);
+                    });
+                }
 
                 return baseHeaders.concat(compareHeaders);
             },
@@ -235,6 +266,7 @@
             },
             filterFields() {
                 return [
+                    {text: 'Каналы для сравнения', id: 'compareSources', type: 'select', items: this.compareSourcesForSelect, attrs: {multiple: true}},
                     {text: 'Артикул', id: 'sku'},
                     {text: 'Штрихкод', id: 'barcode'},
                     {text: 'Скрыть пустые и одинаковые остатки', id: 'onlyUnequal', type: 'flag'},
