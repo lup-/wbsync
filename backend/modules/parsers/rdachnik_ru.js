@@ -15,18 +15,30 @@ module.exports = function () {
                 code(document) {
                     let dataLists = document.querySelectorAll('.product-page .col-sm-5 .list-unstyled');
                     let codeAvailList = dataLists[0];
-                    let dataRows = codeAvailList.querySelectorAll('li');
-                    let codeEl = dataRows[0];
-                    let code = innerText(codeEl).replace(/^.*?: */, '').trim();
-                    return code;
+                    if (codeAvailList) {
+                        let dataRows = codeAvailList.querySelectorAll('li');
+                        let codeEl = dataRows[0];
+                        if (codeEl) {
+                            let code = innerText(codeEl).replace(/^.*?: */, '').trim();
+                            return code;
+                        }
+                    }
+
+                    return null;
                 },
                 available(document) {
                     let dataLists = document.querySelectorAll('.product-page .col-sm-5 .list-unstyled');
                     let codeAvailList = dataLists[0];
-                    let dataRows = codeAvailList.querySelectorAll('li');
-                    let availabilityEl = dataRows[1];
-                    let availableText = innerText(availabilityEl).replace(/^.*?: */, '').trim();
-                    return availableText.toLowerCase() === 'в наличии';
+                    if (codeAvailList) {
+                        let dataRows = codeAvailList.querySelectorAll('li');
+                        let availabilityEl = dataRows[1];
+                        if (availabilityEl) {
+                            let availableText = innerText(availabilityEl).replace(/^.*?: */, '').trim();
+                            return availableText.toLowerCase() === 'в наличии';
+                        }
+                    }
+
+                    return null;
                 },
                 price(document) {
                     let priceEl = document.querySelector(`#input-option231 option[value="${extra}"]`)
