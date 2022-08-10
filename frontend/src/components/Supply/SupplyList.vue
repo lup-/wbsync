@@ -13,6 +13,7 @@
                         :items-per-page="50"
                         fixed-header
                         :height="$store.state.tableHeight"
+                        :footer-props="{'items-per-page-options': [15, 50, 100, 500, -1]}"
                 >
                     <template v-slot:item.supplyDate="{item}">{{item.supplyDate > 0? moment.unix(item.supplyDate).format(dateFormat) : ''}}</template>
                     <template v-slot:item.created="{item}">{{item.created > 0 ? moment.unix(item.created).format(dateFormat) : ''}}</template>
@@ -129,6 +130,12 @@
             this.loadItems();
         },
         watch: {
+            options: {
+                deep: true,
+                handler() {
+                    this.loadItems();
+                }
+            },
             productOptions: {
                 deep: true,
                 handler() {
@@ -139,7 +146,20 @@
         methods: {
             async loadItems() {
                 this.loading = true;
-                await this.$store.dispatch('supply/loadItems');
+
+                let sort = this.options.sortBy && this.options.sortBy.length > 0
+                    ? this.options.sortBy.reduce((sortFields, fieldId, index) => {
+                        let isDesc = this.options.sortDesc[index];
+                        sortFields[fieldId] = isDesc ? -1 : 1;
+                        return sortFields;
+                    }, {})
+                    : {};
+                let limit = this.options.itemsPerPage || 15;
+                let page = this.options.page || 1;
+                let offset = (page-1)*limit;
+                let filter = {};
+
+                await this.$store.dispatch('supply/loadItems',  {filter, limit, offset, sort});
                 await this.$store.dispatch('supplyType/loadItems');
                 await this.$store.dispatch('productType/loadItems');
                 this.loading = false;
