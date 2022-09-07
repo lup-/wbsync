@@ -11,6 +11,10 @@ const API_MAX_ORDERS_CHUNK_SIZE = 50;
 const API_MAX_STOCKS_CHUNK_SIZE = 100;
 const API_MAX_INFO_CHUNK_SIZE = 1000;
 
+async function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export class Ozon {
     constructor(clientId = null, apiKey = null) {
         this.clientId = clientId
@@ -83,7 +87,14 @@ export class Ozon {
             return response.data;
         }
         catch (e) {
-            debug(e);
+            let isRateLimit = e && e.response && e.response.data && e.response.data.code && e.response.data.code === 13;
+            if (isRateLimit) {
+                await wait(1000);
+                return this.callPostMethod(method, params);
+            }
+            else {
+                debug(e);
+            }
         }
 
         return null;
@@ -130,18 +141,21 @@ export class Ozon {
 
     async fetchProducts() {
         let loadNextPage = false;
-        let page = 1;
+        let lastId = null;
         let allProducts = [];
         do {
-            let data = await this.callPostMethod('v2/product/info/stocks', {
-                page_size: API_MAX_INFO_CHUNK_SIZE,
-                page: page-1
+            let data = await this.callPostMethod('v3/product/info/stocks', {
+                filter: {
+                    visibility: 'ALL'
+                },
+                last_id: lastId,
+                limit: API_MAX_INFO_CHUNK_SIZE
             });
 
             if (data && data.result) {
-                page++;
+                lastId = data.result.last_id || null;
                 allProducts = allProducts.concat(data.result.items);
-                loadNextPage = allProducts.length < data.result.total;
+                loadNextPage = lastId && lastId.length > 0;
             }
             else {
                 loadNextPage = false;
