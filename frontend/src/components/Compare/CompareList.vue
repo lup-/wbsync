@@ -189,7 +189,10 @@
                 let page = this.options.page || 1;
                 let offset = (page-1)*limit;
 
-                let filter = {};
+                let filter = {
+                    existsIn: this.filter.existsIn || [],
+                    notExistsIn: this.filter.notExistsIn || [],
+                };
                 if (this.filter.barcode) {
                     filter.barcode = this.filter.barcode;
                 }
@@ -322,6 +325,8 @@
             filterFields() {
                 return [
                     {text: 'Каналы для сравнения', id: 'compareSources', type: 'select', items: this.compareSourcesForSelect, attrs: {multiple: true}},
+                    {text: 'Есть в канале', id: 'existsIn', type: 'select', items: this.compareSourcesForSelect, attrs: {multiple: true}},
+                    {text: 'Нет в канале', id: 'notExistsIn', type: 'select', items: this.compareSourcesForSelect, attrs: {multiple: true}},
                     {text: 'Искать совпадения по', id: 'matchField', type: 'select', single: true, items: this.matchFields},
                     {text: 'Сравнивать по', id: 'compareField', type: 'select', single: true, items: this.compareFields},
                     {text: 'Артикул', id: 'sku'},

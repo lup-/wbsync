@@ -308,6 +308,54 @@ module.exports = {
             delete inputFilter.ordersDate;
         }
 
+        let existsFilter = {};
+        if (inputFilter.existsIn) {
+            if (inputFilter.existsIn.length > 0) {
+                existsFilter = {
+                    "stocks": {
+                        $elemMatch: {
+                            sourceKey: {$in: inputFilter.existsIn},
+                            quantity: {$gt: 0}
+                        }
+                    }
+                };
+            }
+            delete inputFilter.existsIn;
+        }
+
+        let notExistsFilter = {};
+        if (inputFilter.notExistsIn) {
+            if (inputFilter.notExistsIn.length > 0) {
+                let orCondition = [];
+                for (let sourceKey of inputFilter.notExistsIn) {
+                    orCondition.push({
+                        $or: [
+                            {"stocks": {
+                                    "$elemMatch": {
+                                        "sourceKey": sourceKey,
+                                        "quantity": {"$not": {"$gt": 0}}
+                                    }
+                                }
+                            },
+                            {"stocks": {
+                                    "$not": {
+                                        "$elemMatch": {
+                                            "sourceKey": sourceKey
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    });
+                }
+
+                notExistsFilter = {
+                    "$or": orCondition
+                };
+            }
+            delete inputFilter.notExistsIn;
+        }
+
         let db = await getDb();
 
         let orderStockCount = {};
@@ -410,12 +458,24 @@ module.exports = {
             { $match: barcodeFilter },
             { $match: sourceFilter },
             { $addFields: {
-                barcodeOrSku: {$cond: {if: {$in: ["$barcode", ["", null, false]]}, then: "$sku", else: "$barcode"}}
+                barcodeOrSku: {$cond: {if: {$in: ["$barcode", ["", null, false]]}, then: "$sku", else: "$barcode"}},
+                sourceKey: {
+                    $concat: [
+                        "$source", {
+                            $cond: {
+                                "if": {$ne: [{$type: "$keyId"}, "missing"]},
+                                "then": {$concat: [".", "$keyId"]},
+                                "else": ""
+                            }}
+                    ]
+                }
             } },
             {
                 $project: {raw: 0}
             },
             { $group: {"_id": `$${matchField}`, "stocks": {$addToSet: "$$ROOT"}} },
+            { $match: existsFilter },
+            { $match: notExistsFilter }
         ];
 
         if (onlyMatched) {
@@ -440,11 +500,11 @@ module.exports = {
         let items = await cursor.toArray();
         let uniqueKeySources = getUniqueKeySources(items);
 
-        let allKeySourcesPipeline = pipeline.concat([
-            { "$unwind": "$stocks" },
-            { "$group": {"_id": {"source": "$stocks.source", "keyId": "$stocks.keyId"}} },
+        let allKeySourcesPipeline = [
+            { "$match": {"deleted": {"$in": [null, false]}} },
+            { "$group": {"_id": {"source": "$source", "keyId": "$keyId"}} },
             { "$sort": {"_id.source": 1, "_id.keyId": 1}}
-        ]);
+        ];
         let sourcesFilterStageIndex = 3;
         allKeySourcesPipeline.splice(sourcesFilterStageIndex, 1);
 
