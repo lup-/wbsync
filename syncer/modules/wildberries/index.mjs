@@ -6,10 +6,14 @@ import {Product} from "../dbProduct.mjs";
 
 const API_BASE = 'https://suppliers-stats.wildberries.ru/api/v1/';
 const API_V2_BASE = 'https://suppliers-api.wildberries.ru/api/v2/';
+const API_V3_BASE = 'https://suppliers-api.wildberries.ru/api/v3/';
+const CONTENT_V2_BASE = 'https://suppliers-api.wildberries.ru/content/v2/';
 
 const API_V2_ORDERS_MAX_CHUNK_SIZE = 1000;
-const API_V2_STOCKS_MAX_CHUNK_SIZE = 1000;
 const API_V2_STOCKS_UPLOAD_MAX_CHUNK_SIZE = 100;
+
+const API_V3_STOCKS_MAX_CHUNK_SIZE = 1000;
+
 
 const debug = createDebug('wildberries');
 
@@ -17,6 +21,7 @@ export class Wildberries {
     constructor(apiV1Key = null, apiV2Key = null) {
         this.apiV1Key = apiV1Key;
         this.apiV2Key = apiV2Key;
+        this.apiV3Key = apiV2Key;
     }
 
     async callV1Api(method, params = {}) {
@@ -61,17 +66,81 @@ export class Wildberries {
         }
     }
 
-    async postV2Api(method, params = {}) {
-        if (!this.apiV2Key) {
-            throw new Error('Ключ для API v2 не задан');
+    async callV3Api(method, params = {}) {
+        if (!this.apiV3Key) {
+            throw new Error('Ключ для API v3 не задан');
         }
 
-        let url = `${API_V2_BASE}${method}`;
+        let url = `${API_V3_BASE}${method}`;
+
+        try {
+            let response = await axios.get(url, {
+                headers: {
+                    Authorization: this.apiV3Key,
+                },
+                params
+            });
+
+            return response.data;
+        }
+        catch (e) {
+            debug(e);
+        }
+    }
+
+    async postV3Api(method, params = {}) {
+        if (!this.apiV3Key) {
+            throw new Error('Ключ для API v3 не задан');
+        }
+
+        let url = `${API_V3_BASE}${method}`;
 
         try {
             let response = await axios.post(url, params, {
                 headers: {
-                    authorization: this.apiV2Key,
+                    Authorization: this.apiV3Key,
+                }
+            });
+
+            return response.data;
+        }
+        catch (e) {
+            debug(e);
+        }
+    }
+
+    async putV3Api(method, params = {}) {
+        if (!this.apiV3Key) {
+            throw new Error('Ключ для API v3 не задан');
+        }
+
+        let url = `${API_V3_BASE}${method}`;
+
+        try {
+            let response = await axios.put(url, params, {
+                headers: {
+                    Authorization: this.apiV3Key,
+                }
+            });
+
+            return response.data;
+        }
+        catch (e) {
+            debug(e);
+        }
+    }
+
+    async postContentApi(method, params = {}) {
+        if (!this.apiV3Key) {
+            throw new Error('Ключ для API v3 не задан');
+        }
+
+        let url = `${CONTENT_V2_BASE}${method}`;
+
+        try {
+            let response = await axios.post(url, params, {
+                headers: {
+                    authorization: this.apiV3Key,
                 }
             });
 
@@ -84,30 +153,6 @@ export class Wildberries {
 
     normalizeDate(someDate, defaultDate) {
         return normalizeDate(someDate, defaultDate);
-    }
-
-    async getOrdersV1(dateFrom = false, useUpdateDate = true) {
-        let defaultDate = moment().startOf('d');
-        dateFrom = this.normalizeDate(dateFrom, defaultDate);
-
-        let v1params = {
-            dateFrom: dateFrom.toISOString(),
-            flag: useUpdateDate ? 0 : 1
-        }
-
-        return this.callV1Api('supplier/orders', v1params);
-    }
-
-    async getSalesV1(dateFrom = false, useUpdateDate = true) {
-        let defaultDate = moment().startOf('d');
-        dateFrom = this.normalizeDate(dateFrom, defaultDate);
-
-        let v1params = {
-            dateFrom: dateFrom.toISOString(),
-            flag: useUpdateDate ? 0 : 1
-        }
-
-        return this.callV1Api('supplier/sales', v1params);
     }
 
     async getOrdersV2(dateFrom = false, dateTo = false) {
@@ -144,13 +189,61 @@ export class Wildberries {
             : null;
     }
 
-    async getAllFBSOrders(dateFrom) {
-        let allOrders = await this.getOrdersV1(dateFrom);
-        return allOrders ? allOrders.filter(order => order.number === 0) : allOrders;
-    }
+    async getOrdersV3(dateFrom = false, dateTo = false) {
+        let defaultDate = moment().startOf('d');
+        dateFrom = this.normalizeDate(dateFrom, defaultDate);
+        dateTo = this.normalizeDate(dateTo, dateFrom.clone().add('1', 'd'));
 
-    async getActiveFBSOrders(date) {
-        return this.getOrdersV2(date)
+        let loadNextPage = false;
+        let page = 1;
+        let allOrders = [];
+
+        let params = {
+            dateFrom: dateFrom.unix(),
+            dateTo: dateTo.unix(),
+            limit: API_V2_ORDERS_MAX_CHUNK_SIZE,
+            next: 0,
+        }
+
+        do {
+            let ordersResponse = await this.callV3Api('orders', params);
+            let pageOrders = ordersResponse && ordersResponse.orders
+                ? ordersResponse.orders
+                : null;
+
+            if (pageOrders && pageOrders.length > 0) {
+                let orderIds = pageOrders.map(order => order.id);
+                let statusesResponse = await this.postV3Api('orders/status', {
+                    orders: orderIds,
+                });
+
+                if (statusesResponse.orders && statusesResponse.orders.length > 0) {
+                    let statusesHash = statusesResponse.orders.reduce((hash, statusData) => {
+                        if (statusData && statusData.id) {
+                            hash[statusData.id] = statusData.wbStatus;
+                        }
+                        return hash;
+                    }, {});
+                    pageOrders = pageOrders.map(order => {
+                        if (statusesHash[order.id]) {
+                            order.status = statusesHash[order.id];
+                        }
+                        return order;
+                    });
+                }
+            }
+
+            loadNextPage = pageOrders && pageOrders.length > 0;
+            page++;
+            params.next = ordersResponse.next;
+            if (pageOrders) {
+                allOrders = allOrders.concat(pageOrders);
+            }
+        } while (loadNextPage)
+
+        return allOrders && allOrders.length > 0
+            ? allOrders
+            : null;
     }
 
     getProductFromOrder(order) {
@@ -168,68 +261,122 @@ export class Wildberries {
     async fetchProducts() {
         let loadNextPage = false;
         let page = 1;
-        let allStocks = [];
+        let allProducts = [];
+        let warehouses = await this.getWarehouses();
+        let warehouse = warehouses ? warehouses[0] : null;
+        let warehouseId = warehouse?.id || null;
+
+        if (!warehouseId) {
+            return [];
+        }
+
+        let cursor = {
+            limit: API_V3_STOCKS_MAX_CHUNK_SIZE
+        }
+
+        let filter = {
+            withPhoto: -1
+        }
+
         do {
-            let data = await this.callV2Api('stocks', {
-                take: API_V2_STOCKS_MAX_CHUNK_SIZE,
-                skip: allStocks.length,
+            let productsResponse = await this.postContentApi('get/cards/list', {
+                settings: {cursor, filter}
             });
 
-            let pageStocks = data && data.stocks
-                ? data.stocks
-                : null;
+            let products = productsResponse?.cards || [];
 
-            loadNextPage = pageStocks && pageStocks.length > 0;
+            if (products.length > 0) {
+                products = products.reduce((all, product) => {
+                    for (let size of product.sizes) {
+                        let newProduct = Object.assign({}, product);
+                        newProduct.size = size;
+                        all.push(newProduct);
+                    }
+                    return all;
+                }, []);
+
+                let skus = products.map(product => product?.size?.skus[0]);
+                let skuChunks = splitIntoChunks(skus, API_V3_STOCKS_MAX_CHUNK_SIZE);
+                let allStocks = [];
+                for (let chunk of skuChunks) {
+                    let stockData = await this.postV3Api('stocks/' + warehouseId, {skus});
+                    let stocks = stockData.stocks || [];
+                    if (stocks && stocks.length > 0) {
+                        allStocks = allStocks.concat(stocks);
+                    }
+                }
+
+                let stocksHash = allStocks.reduce((hash, stock) => {
+                    if (stock) {
+                        hash[stock.sku] = stock?.amount || 0;
+                    }
+
+                    return hash;
+                }, {});
+
+                products = products.map(product => {
+                    let sku = product?.size?.skus[0];
+                    product.amount = sku
+                        ? stocksHash[sku] || 0
+                        : 0;
+                    return product;
+                });
+            }
+
+            loadNextPage = products && products.length > 0;
             page++;
-            if (pageStocks) {
-                allStocks = allStocks.concat(pageStocks);
+            cursor.updatedAt = productsResponse?.cursor?.updatedAt;
+            cursor.nmID = productsResponse?.cursor?.nmID;
+
+            if (products) {
+                allProducts = allProducts.concat(products);
             }
         } while (loadNextPage);
 
-        return allStocks;
+        return allProducts;
     }
 
-    makeDbProductsFromOrderV2(wbv2Order) {
+    makeDbProductsFromOrderV3(wbv3Order) {
         let product = new Product({
-            id: wbv2Order.barcode,
-            barcode: wbv2Order.barcode,
-            price: wbv2Order.totalPrice,
+            id: wbv3Order.nmId,
+            barcode: wbv3Order.skus[0],
+            price: wbv3Order.price / 100,
             quantity: 1,
         });
-        product.setRaw('v2order', wbv2Order);
+        product.setRaw('v3order', wbv3Order);
 
         return [product.getJson()];
     }
 
-    makeDbProductsFromStocksV2(wbv2Stocks, key) {
+    makeDbProductsFromStocksV3(wbv3Stocks, key) {
         let product = new Product({
             source: 'wildberries',
-            sourceType: 'v2',
+            sourceType: 'v3',
             keyId: key.id,
 
-            id: wbv2Stocks.barcode,
-            size: {de: wbv2Stocks.size},
-            barcode: wbv2Stocks.barcode,
-            quantity: wbv2Stocks.stock,
-            brand: wbv2Stocks.brand,
-            title: wbv2Stocks.name,
-            sku: wbv2Stocks.article,
+            id: wbv3Stocks.nmID,
+            size: {ru: wbv3Stocks.size?.wbSize},
+            barcode: wbv3Stocks.size?.skus[0],
+            quantity: wbv3Stocks.amount,
+            brand: wbv3Stocks.brand,
+            title: wbv3Stocks.subjectName,
+            sku: wbv3Stocks.size?.skus[0],
         });
-        product.setRaw('v2stocks', wbv2Stocks);
+        product.setRaw('v3stocks', wbv3Stocks);
 
         return product.getJson();
     }
 
     async fetchStocksForDb(key) {
         let wbProducts = await this.fetchProducts();
-        let wbStocks = wbProducts.map(product => this.makeDbProductsFromStocksV2(product, key));
+        let wbStocks = wbProducts.map(product => this.makeDbProductsFromStocksV3(product, key));
 
         return wbStocks;
     }
 
     async getWarehouses() {
         try {
-            let data = await this.callV2Api('warehouses', {});
+            let data = await this.callV3Api('warehouses', {});
             return data;
         }
         catch (e) {
@@ -255,8 +402,8 @@ export class Wildberries {
         return matched;
     }
 
-    updateQuantities(stocks) {
-        return this.postV2Api('stocks', stocks);
+    updateQuantities(stocks, warehouseId) {
+        return this.putV3Api('stocks/'+warehouseId, stocks);
     }
 
     async syncLeftovers(isDbSync, fromStocks, toStocks) {
@@ -265,17 +412,20 @@ export class Wildberries {
         let targetWarehouse = warehouses[0];
 
         let allStocks = matchedStocks.map(matched => ({
-            barcode: matched.target.barcode,
-            stock: matched.source.quantity,
-            warehouseId: targetWarehouse.id
+            sku: matched.target.barcode,
+            amount: matched.source.quantity,
         }));
 
         let errors = [];
         let stocksChunks = splitIntoChunks(allStocks, API_V2_STOCKS_UPLOAD_MAX_CHUNK_SIZE);
         for (let chunk of stocksChunks) {
-            let result = await this.updateQuantities(chunk);
-            if (result.error === true) {
-                errors = errors.concat(result.data.errors);
+            try {
+                await this.updateQuantities({
+                    stocks: chunk
+                }, targetWarehouse.id);
+            }
+            catch (e) {
+                errors.push(e.toString());
             }
         }
 

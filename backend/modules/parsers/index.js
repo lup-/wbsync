@@ -40,7 +40,14 @@ async function parseWatchItem(watchItem) {
         let host = getHost(url);
         let parser = getParser(url);
         if (parser) {
-            let product = await parser.getProduct(url, extra);
+            let product;
+
+            try {
+                product = await parser.getProduct(url, extra);
+            }
+            catch (e) {
+                product = null;
+            }
 
             if (product) {
                 product.host = host;

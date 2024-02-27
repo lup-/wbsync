@@ -303,6 +303,9 @@ export class InSales {
 
     async syncLeftovers(isDbSync, fromStocks) {
         const MAX_VARIANTS_PER_REQUEST = 100;
+        if (!fromStocks) {
+            return true;
+        }
 
         if (fromStocks.length === 0) {
             return true;

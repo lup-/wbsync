@@ -68,9 +68,9 @@ function makeDbProductsFromWildberriesSaleV1(wbv1Sale) {
         price: parseInt( wbv1Sale.totalPrice * 100)
     }];
 }
-function makeDbProductsFromWildberriesV2(wbv2Order) {
+function makeDbProductsFromWildberriesV3(wbv3Order) {
     let wb = new Wildberries();
-    return wb.makeDbProductsFromOrderV2(wbv2Order);
+    return wb.makeDbProductsFromOrderV3(wbv3Order);
 }
 function makeDbProductsFromInsales(insalesOrder, key) {
     let insales = new InSales();
@@ -109,65 +109,38 @@ function makeDbOrderFromWildberriesV1(wbv1Order, key) {
         raw: wbv1Order
     }
 }
-function makeDbOrderFromWildberriesV2(wbv2Order, key) {
+function makeDbOrderFromWildberriesV3(wbv3Order, key) {
     let statusTexts = {
-        0: "Новый заказ",
-        1: "Принял заказ",
-        2: "Сборочное задание завершено",
-        3: "Сборочное задание отклонено",
-        5: "На доставке курьером",
-        6: "Курьер довез и клиент принял товар",
-        7: "Клиент не принял товар"
+        waiting: "Сборочное задание в работе",
+        sorted: "Сборочное задание отсортировано",
+        sold: "Сборочное задание получено покупателем",
+        canceled: "Отмена сборочного задания",
+        canceled_by_client: "Покупатель отменил заказ при получении",
+        declined_by_client: "Покупатель отменил заказ в первый чаc",
+        defect: "Отмена сборочного задания по причине брака",
+        ready_for_pickup: "Сборочное задание прибыло на ПВЗ",
     }
 
-    let userStatusText = {
-        1: "Отмена клиента",
-        2: "Доставлен",
-        3: "Возврат",
-        4: "Ожидает",
-        5: "Брак"
-    }
-
-    let isCanceled = wbv2Order.userStatus === 1 || wbv2Order.userStatus === 3 || wbv2Order.userStatus === 5;
-    let dateCreated = moment(wbv2Order.dateCreated).unix();
+    let isCanceled = wbv3Order.status && ['canceled', 'canceled_by_client', 'declined_by_client'].includes(wbv3Order.status);
+    let dateCreated = moment(wbv3Order.createdAt).unix();
 
     return {
         source: 'wildberries',
-        sourceType: 'v2',
+        sourceType: 'v3',
         orderType: 'FBS',
         keyId: key.id,
 
-        id: wbv2Order.orderId,
+        id: wbv3Order.id,
         updated: dateCreated,
         created: dateCreated,
         canceled: isCanceled ? dateCreated : false,
-        status: wbv2Order.status,
-        statusText: statusTexts[wbv2Order.status],
-        price: wbv2Order.totalPrice,
+        status: wbv3Order.status,
+        statusText: statusTexts[wbv3Order.status],
+        price: wbv3Order.price / 100,
 
-        products: makeDbProductsFromWildberriesV2(wbv2Order),
+        products: makeDbProductsFromWildberriesV3(wbv3Order),
 
-        raw: wbv2Order
-    }
-}
-function makeDbOrderFromWildberriesSalesV1(wbv1Sale, key) {
-    return {
-        source: 'wildberries',
-        sourceType: 'v1',
-        orderType: 'SALE',
-        keyId: key.id,
-
-        id: wbv1Sale.saleID,
-        updated: moment(wbv1Sale.lastChangeDate).unix(),
-        created: moment(wbv1Sale.date).unix(),
-        canceled: null,
-        status: null,
-        statusText: null,
-        price: parseInt( wbv1Sale.finishedPrice * 100),
-
-        products: makeDbProductsFromWildberriesSaleV1(wbv1Sale),
-
-        raw: wbv1Sale
+        raw: wbv3Order
     }
 }
 function makeDbOrderFromInsales(insalesOrder, key) {
@@ -400,7 +373,7 @@ function joinByArray(orders) {
     return joinedOrders;
 }
 
-async function syncJoinedWBOrders(key, db) {
+async function syncWBOrders(key, db) {
     let wbv1Key = key.wb_64bit;
     let wbv2Key = key.wb_new;
 
@@ -409,17 +382,10 @@ async function syncJoinedWBOrders(key, db) {
 
     let dateFrom = await getDateFrom(source, db);
     let dateTo = moment().endOf('d');
-    let ordersV1 = await wb.getOrdersV1(dateFrom) || [];
-    let salesV1 = await wb.getSalesV1(dateFrom) || [];
-    let ordersV2 = await wb.getOrdersV2(dateFrom, dateTo) || [];
-    let preparedOrdersV1 = ordersV1
-        // .filter(orderV1 => orderV1.number !== 0)
-        .map(order => makeDbOrderFromWildberriesV1(order, key));
-    let preparedSalesV1 = salesV1.map(sale => makeDbOrderFromWildberriesSalesV1(sale, key));
-    let preparedOrdersV2 = ordersV2.map(order => makeDbOrderFromWildberriesV2(order, key));
-    let joinedOrders = joinByArray(preparedOrdersV1.concat(preparedOrdersV2).concat(preparedSalesV1));
+    let orders = await wb.getOrdersV3(dateFrom, dateTo) || [];
+    let preparedOrders = orders.map(order => makeDbOrderFromWildberriesV3(order, key));
     let beforeUpdate = (updatedOrder, savedOrder) => {
-        if (updatedOrder.sourceType === 'v2') {
+        if (updatedOrder.sourceType === 'v3') {
             updatedOrder.updated = moment().unix();
             if (savedOrder.canceled === false && updatedOrder.canceled !== false) {
                 updatedOrder.canceled = moment().unix();
@@ -428,7 +394,7 @@ async function syncJoinedWBOrders(key, db) {
 
         return updatedOrder;
     }
-    return syncCollectionItems(db, joinedOrders, 'orders', 'id', 'status', beforeUpdate);
+    return syncCollectionItems(db, preparedOrders, 'orders', 'id', 'status', beforeUpdate);
 }
 async function syncInsalesOrders(key, db) {
     let insales = new InSales(key.insales_api_id, key.insales_api_password, key.api_base);
@@ -460,7 +426,7 @@ async function syncOzonOrders(key, db) {
 async function updateWbOrdersInDb(keys, db) {
     for (let key of keys) {
         debug('Syncing %s', key.title);
-        await syncJoinedWBOrders(key, db);
+        await syncWBOrders(key, db);
     }
 }
 async function updateInsalesOrdersInDb(keys, db) {

@@ -1,10 +1,10 @@
-POST http://localhost:8017/api/user/add
+POST http://mp.brandslab.shop/api/user/add
 Content-Type: application/json
 
 {
   "user": {
     "login": "admin",
-    "password": "admin",
+    "password": "xoh8Choh",
     "isAdmin": true
   }
 }

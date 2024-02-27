@@ -97,6 +97,7 @@ async function downloadStocksForKey(db, key, debug) {
     }
 
     if (key.type === 'ozon') {
+        return;
         debug('Syncing Ozon %s', key.title);
         let ozon = new Ozon(key.client_id, key.api_key);
         let ozonStocks = await ozon.fetchStocksForDb(key);
@@ -138,7 +139,14 @@ async function downloadAllStocks(debug, jsonPath) {
     let preparedProducts = prepareProducts(products);
 
     debug('Sync 1C %s stocks with db...', products.length);
-    let db = await getDb();
+    let db;
+    try {
+        db = await getDb();
+    }
+    catch (e) {
+        debug('Error connecting to DB: %s', e.toString());
+        return false;
+    }
     let {isSuccess, newItems, updatedItems} = await syncCollectionItems(
         db,
         preparedProducts,
@@ -165,7 +173,12 @@ async function downloadAllStocks(debug, jsonPath) {
     let keys = await db.collection('keys').find({deleted: {$in: [null, false]}}).toArray();
 
     for (let key of keys) {
-        await downloadStocksForKey(db, key, debug);
+        try {
+            await downloadStocksForKey(db, key, debug);
+        }
+        catch (e) {
+            debug(e);
+        }
     }
 
     await db.collection('log').insertOne({
@@ -214,8 +227,13 @@ async function uploadStocks(stockIds, idField, from, to, debug) {
     let errorIds = null;
     if (provider) {
         let isDbSync = false;
-        errorIds = await provider.syncLeftovers(isDbSync, fromStocks, toStocks);
-        await downloadStocksForKey(db, key, debug);
+        try {
+            errorIds = await provider.syncLeftovers(isDbSync, fromStocks, toStocks);
+            await downloadStocksForKey(db, key, debug);
+        }
+        catch (e) {
+            debug(e);
+        }
     }
 
     await db.collection('log').insertOne({
@@ -263,8 +281,13 @@ async function uploadProductStocks(stockIds, to, debug) {
     let errorIds = null;
     if (provider) {
         let isDbSync = true;
-        errorIds = await provider.syncLeftovers(isDbSync, fromStocks, toStocks);
-        await downloadStocksForKey(db, key, debug);
+        try {
+            errorIds = await provider.syncLeftovers(isDbSync, fromStocks, toStocks);
+            await downloadStocksForKey(db, key, debug);
+        }
+        catch (e) {
+            debug(e);
+        }
     }
 
     await db.collection('log').insertOne({
